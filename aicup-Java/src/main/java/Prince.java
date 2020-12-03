@@ -61,22 +61,18 @@ public class Prince extends Thread {//Управляет только строи
                     return new Vec2Int(d - i, i);
             }
         }
-        System.out.println("No place to build((((");
         return new Vec2Int(0,0);
     }
 
     boolean isBuildPossible(int x, int y, int size){ // Возможно ли строительство здания
-        //System.out.println("isBuildPossible " + x + " " + y + " " + size);
         //Проверка на возможность подойти к месту строительства
         if(y == 0 || filledCells.contains(new Pair(x, y - 1)))
             return false;
-        //System.out.println("Builder could move to buildpoint");
         //Проверка на чистоту площади постройки
         for(int xx = x; xx < x + size; xx++){
             for(int yy = y; yy < y + size; yy++){
                 if(filledCells.contains(new Pair(xx, yy)))
                     return false;
-                //System.out.println(xx + " " + yy + " is clear");
             }
         }
         //Проверка на чистоту у стены слева
@@ -105,8 +101,7 @@ public class Prince extends Thread {//Управляет только строи
 
             var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
 
-            /*MoveAction move_action = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
-                    playerView.getMapSize() - 1), true, true);*/
+
             MoveAction move_action = null;
             BuildAction build_action = null;
             AttackAction attack_action = null;
@@ -114,12 +109,10 @@ public class Prince extends Thread {//Управляет только строи
             BuildProperties build_properties = null;
 
             if(entity.getId() == builderChief.getId()){ // Если юнит - прораб
-                System.out.println("Chief at " + entity.getPosition().getX() + " " + entity.getPosition().getY());
                 //Поиск здания для ремонта
                 for(var building : entities){
                     var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
                     if(!isUnit(building.getEntityType()) && building.getHealth() < propertiesBuilding.getMaxHealth()){
-                        System.out.println("Chief: Gotta repair the " + building.getEntityType().toString());
                         repair_action = new RepairAction(
                                 building.getId()
                         );
@@ -129,7 +122,6 @@ public class Prince extends Thread {//Управляет только строи
 
                 if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= 5){
                     Vec2Int placeForHouse = getPlaceForHouse();
-                    System.out.println("Chief: Gotta build a dacha at " + placeForHouse.getX() + " " + placeForHouse.getY());
                     move_action = new MoveAction(
                             new Vec2Int(placeForHouse.getX(),placeForHouse.getY() - 1),
                             false,
@@ -143,7 +135,8 @@ public class Prince extends Thread {//Управляет только строи
 
                 }
                 else if(repair_action == null){
-                    System.out.println("Chief: Gotta work");
+                    move_action = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
+                            playerView.getMapSize() - 1), true, true);
                     attack_action = new AttackAction(
                             null,
                             new AutoAttack(
@@ -164,19 +157,6 @@ public class Prince extends Thread {//Управляет только строи
                         )
                 );
             }
-
-            /*if(!isUnit(entity.getEntityType()) && entity.getHealth() < properties.getMaxHealth()){
-                result.put(
-                        entity.getId(),
-                        new EntityAction(
-                                move_action,
-                                build_action,
-                                attack_action,
-                                repair_action
-                        )
-                );
-                continue;
-            }*/
 
 
             if (entity.getEntityType() == EntityType.BUILDER_BASE) // Строительство рабочих
