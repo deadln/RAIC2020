@@ -52,6 +52,13 @@ public class MyStrategy {
 
         }
 
+        for(var player : playerView.getPlayers()){ //
+            if(player.getId() == playerView.getMyId()){
+                me = player;
+            }
+
+        }
+
         ArrayList<Entity> princeEntities = new ArrayList<>(); // Действия князя
         ArrayList<Entity> warlordEntities = new ArrayList<>(); // Действия воина
 
@@ -95,17 +102,22 @@ public class MyStrategy {
                     }
                 }
             }
-            //System.out.println("Enemy status" + enemyStatus.toString());
 
 
 
             if(entity.getPlayerId() == null || entity.getPlayerId() != playerView.getMyId()) // Пропуск вражеских и ресов
                 continue;
 
-            if(entity.getEntityType() == EntityType.MELEE_UNIT || entity.getEntityType() == EntityType.RANGED_UNIT) // Распределение управления над юнитами
+            if(entity.getEntityType() == EntityType.TURRET){
                 warlordEntities.add(entity);
-            else
                 princeEntities.add(entity);
+            }
+            else if(entity.getEntityType() == EntityType.MELEE_UNIT || entity.getEntityType() == EntityType.RANGED_UNIT) { // Распределение управления над юнитами
+                warlordEntities.add(entity);
+            }
+            else {
+                princeEntities.add(entity);
+            }
 
             //Подсчёт кол-ва юнитов
             if(entity.getEntityType() == EntityType.BUILDER_UNIT) {
@@ -148,7 +160,7 @@ public class MyStrategy {
         debugInterface.getState();
     }
 
-    
+
 
 
 }

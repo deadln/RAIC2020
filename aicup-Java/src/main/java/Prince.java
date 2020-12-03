@@ -17,6 +17,8 @@ public class Prince extends Thread {//Управляет только строи
     Entity builderChief;
     HashSet<Pair> filledCells;
 
+    double BUILDERS_RATIO;
+
 
 
     public Prince(PlayerView playerView, Player player, HashSet<Pair> filledCells, ArrayList<Entity> princeEntities, int buildersCount,
@@ -29,6 +31,7 @@ public class Prince extends Thread {//Управляет только строи
         this.meleeCount = meleeCount;
         this.rangeCount = rangeCount;
         this.builderChief = builderChief;
+        BUILDERS_RATIO = 0.45;
     }
 
     int getProvisionSumm(PlayerView playerView) // Сумма всей популяции
@@ -81,10 +84,59 @@ public class Prince extends Thread {//Управляет только строи
             if(filledCells.contains(new Pair(x - 1, yy)))
                 return false;
 
-            //ut.println(x - 1 + " " + yy + " is clear");
         }
 
         return true;
+    }
+
+    //Список всех свободных соседних с сущностью клеток
+    ArrayList<Vec2Int> getSides(Entity entity){
+        var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
+        ArrayList<Vec2Int> result = new ArrayList<>();
+
+        if(entity.getPosition().getX() > 0){ // Левая сторона
+            for(int y = entity.getPosition().getY(); y < entity.getPosition().getY() + properties.getSize(); y++){
+                if(!filledCells.contains(new Pair(entity.getPosition().getX() - 1, y)))
+                    result.add(new Vec2Int(entity.getPosition().getX() - 1, y));
+            }
+        }
+
+        if(entity.getPosition().getY() > 0){ // Нижняя сторона
+            for(int x = entity.getPosition().getX(); x < entity.getPosition().getX() + properties.getSize(); x++){
+                if(!filledCells.contains(new Pair(x, entity.getPosition().getY() - 1)))
+                    result.add(new Vec2Int(x, entity.getPosition().getY() - 1));
+            }
+        }
+
+        if(entity.getPosition().getX() < playerView.getMapSize() - 1){ // Правая сторона
+            for(int y = entity.getPosition().getY(); y < entity.getPosition().getY() + properties.getSize(); y++){
+                if(!filledCells.contains(new Pair(entity.getPosition().getX() + 1, y)))
+                    result.add(new Vec2Int(entity.getPosition().getX() + 1, y));
+            }
+        }
+
+        if(entity.getPosition().getY() < playerView.getMapSize() - 1){ // Верхняя сторона
+            for(int x = entity.getPosition().getX(); x < entity.getPosition().getX() + properties.getSize(); x++){
+                if(!filledCells.contains(new Pair(x, entity.getPosition().getY() + 1)))
+                    result.add(new Vec2Int(x, entity.getPosition().getY() + 1));
+            }
+        }
+        return result;
+    }
+
+
+
+    Vec2Int getNearestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points){
+        double distance = (double) playerView.getMapSize(), dis;
+        Vec2Int result = points.get(0);
+        for (var point : points) {
+            dis = Math.hypot(Math.abs(entityPosition.getX() - point.getX()), Math.abs(entityPosition.getY() - point.getY()));
+            if(dis < distance){
+                distance = dis;
+                result = point;
+            }
+        }
+        return result;
     }
 
     public HashMap<Integer, EntityAction> getResult() {
@@ -95,8 +147,12 @@ public class Prince extends Thread {//Управляет только строи
 
     public void run(){
         var provision = getProvisionSumm(playerView); // Текущая провизия
+        if(me.getResource() >= 150){
+            BUILDERS_RATIO = 0.2;
+        }
         result = new HashMap<>(); // Результат
         var my_id = playerView.getMyId(); // Собственный Id
+
         for(var entity : entities){
 
             var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
@@ -108,11 +164,20 @@ public class Prince extends Thread {//Управляет только строи
             RepairAction repair_action = null;
             BuildProperties build_properties = null;
 
+            if(entity.getEntityType() == EntityType.TURRET) // Пропуск управления турелью
+                continue;
+
             if(entity.getId() == builderChief.getId()){ // Если юнит - прораб
                 //Поиск здания для ремонта
                 for(var building : entities){
                     var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
                     if(!isUnit(building.getEntityType()) && building.getHealth() < propertiesBuilding.getMaxHealth()){
+                        System.out.println("Gotta repair the " + building.getEntityType());
+                        move_action = new MoveAction(
+                                getNearestPoint(entity.getPosition(),getSides(building)),
+                                true,
+                                true
+                        );
                         repair_action = new RepairAction(
                                 building.getId()
                         );
@@ -163,7 +228,7 @@ public class Prince extends Thread {//Управляет только строи
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
-                if(buildersCount <= provision / 3){
+                if(buildersCount <= provision * BUILDERS_RATIO){
                     build_action = new BuildAction( // Построить юнита
                             entity_type,
                             new Vec2Int(

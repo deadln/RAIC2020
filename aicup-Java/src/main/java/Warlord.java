@@ -61,18 +61,22 @@ public class Warlord extends Thread { // Управляет только бое�
                 for (int position = 0; position < 3; position++) {
                     if (aliveEnemies.contains(enemyPositions.get(position)) == true) {
                         moveAction = new MoveAction(getAttackPoint(position), true, true);
-                        System.out.println("Attack " + position);
+                        //System.out.println("Attack " + position);
                         break;
                     }
                 }
             }
             else {
-                System.out.println("Attack default");
+                //System.out.println("Attack default");
                 moveAction = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
                         playerView.getMapSize() - 1), true, true);
             }
             BuildAction buildAction = null;
             AttackAction attackAction = null;
+
+            if(entity.getEntityType() == EntityType.TURRET) //
+
+                moveAction = null;
 
             result.put(
                     entity.getId(),
