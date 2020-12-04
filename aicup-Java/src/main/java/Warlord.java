@@ -67,7 +67,6 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
     }
 
     public void activate(PlayerView playerView, ArrayList<Entity> warlordEntities, HashSet<Integer> aliveEnemies, HashMap<Integer, Integer> enemyPositions){
-        System.out.println("WARLORD THREAD");
         this.playerView = playerView;
         this.entities = warlordEntities;
         this.aliveEnemies = aliveEnemies;
@@ -124,6 +123,5 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
             );
         }
         active = 2;
-        System.out.println("END OF WARLORD THREAD");
     }
 }

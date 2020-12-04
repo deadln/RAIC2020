@@ -12,18 +12,25 @@ public class MyStrategy {
     Player me; // Объект самого игрока
     Warlord warlord;
     Prince prince;
+    Maintenance maintenance;
 
+    HashMap<Integer, Entity> entityById;
     HashMap<Integer, Integer> enemyPositions; // Словарь позиция-id
     HashSet<Integer> aliveEnemies; // id - статус
     int builderChiefId = -1; // Прораб. Строит и ремонтирует здания
     Entity builderChief;
 
+    int MAINTENANCE_MAX_COUNT = 3;
+
     public MyStrategy() {
         //myExecutor = Executors.newCachedThreadPool();
-        myExecutor = Executors.newFixedThreadPool(2);
+        myExecutor = Executors.newFixedThreadPool(4);
         enemyPositions = new HashMap<>();
         warlord = new Warlord();
         prince = new Prince();
+        maintenance = new Maintenance();
+
+        entityById = new HashMap<>();
     }
 
     public ExecutorService getMyExecutor() {
@@ -58,7 +65,6 @@ public class MyStrategy {
     }
 
     public Action getAction(PlayerView playerView, DebugInterface debugInterface) {
-        System.out.println("---------------------------------------------------");
         if(playerView.getCurrentTick() == 0){ // Стартовые действия
             enemyPositions = new HashMap<>();
         }
@@ -73,6 +79,10 @@ public class MyStrategy {
 
         ArrayList<Entity> princeEntities = new ArrayList<>(); // Сущности князя
         ArrayList<Entity> warlordEntities = new ArrayList<>(); // Сущности воина
+        ArrayList<Entity> maintenanceEntities = new ArrayList<>(); // Ремонтники
+        ArrayList<Entity> maintenanceCandidates = new ArrayList<>(); // Кандидаты в ремонтники
+        ArrayList<Entity> buildings = new ArrayList<>();
+
 
         int buildersCount = 0; // Кол-во строителей
         int meleeCount = 0; // Кол-во милишников
@@ -84,18 +94,18 @@ public class MyStrategy {
         aliveEnemies = new HashSet<>();
 
         //Поиск занятых клеток
-        HashSet<Pair> filledCells = new HashSet<>(); // ПЕРЕРАБОТАТЬ
+        //HashSet<Pair> filledCells = new HashSet<>(); // ПЕРЕРАБОТАТЬ
+        int[][] filledCells = new int[playerView.getMapSize()][playerView.getMapSize()]; // Поле с Id сущностей, которые занимают клетки
+
 
         for(var entity: playerView.getEntities()){ // Проход по сущностям
-            if(entity.getId() == 0){
-                System.out.println("ID 0: " + entity.getEntityType() + " " + entity.getPosition().getX() + " " + entity.getPosition().getY());
-            }
+            entityById.put(entity.getId(), entity);
 
             var properties = playerView.getEntityProperties().get(entity.getEntityType());
             // Поиск занятых клеток ПЕРЕРАБОТАТЬ
             for(int x = entity.getPosition().getX(); x < entity.getPosition().getX() + properties.getSize(); x++){
                 for(int y = entity.getPosition().getY(); y < entity.getPosition().getY() + properties.getSize(); y++){
-                    filledCells.add(new Pair(x,y));
+                    filledCells[x][y] = entity.getId();
                 }
             }
 
@@ -134,13 +144,23 @@ public class MyStrategy {
                 princeEntities.add(entity);
             }
 
+            if(!isUnit(entity.getEntityType())){
+                buildings.add(entity);
+            }
+
             //Подсчёт кол-ва юнитов
             if(entity.getEntityType() == EntityType.BUILDER_UNIT) {
                 buildersCount++;
                 if(entity.getId() == builderChiefId) // Проверка жив ли прораб
                     builderChiefAlive = true;
-                else
+                if(!builderChiefAlive)
                     builderChiefCandidate = entity;
+                if(entity.getId() != builderChiefId){
+                    if(maintenance.getMaintenanceIds().contains(entity.getId()))
+                        maintenanceEntities.add(entity);
+                    else
+                        maintenanceCandidates.add(entity);
+                }
             }
             if(entity.getEntityType() == EntityType.MELEE_UNIT)
                 meleeCount++;
@@ -149,11 +169,19 @@ public class MyStrategy {
 
 
         }
-
+        //Назначение нового прораба
         if(!builderChiefAlive && builderChiefCandidate != null) {
             builderChief = builderChiefCandidate;
             builderChiefId = builderChiefCandidate.getId();
         }
+
+        //Назначение рембригады
+        int i = 0;
+        while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT && i < maintenanceCandidates.size()){
+            maintenanceEntities.add(maintenanceCandidates.get(i));
+            i++;
+        }
+        maintenance.setMaintenance(maintenanceEntities);
 
 
         //Warlord warlord = new Warlord(playerView, warlordEntities, aliveEnemies, enemyPositions);
@@ -163,6 +191,11 @@ public class MyStrategy {
                 warlord.activate(playerView, warlordEntities, aliveEnemies, enemyPositions);
             }
         });
+
+        System.out.println(buildersCount);
+        System.out.println(meleeCount);
+        System.out.println(rangeCount);
+
         int finalBuildersCount = buildersCount;
         int finalMeleeCount = meleeCount;
         int finalRangeCount = rangeCount;
@@ -170,26 +203,30 @@ public class MyStrategy {
             @Override
             public void run() {
                 prince.setActive(1);
-                prince.activate(playerView, me, filledCells, princeEntities, finalBuildersCount, finalMeleeCount, finalRangeCount, builderChief);
+                prince.activate(playerView, me, filledCells, entityById, princeEntities, new ArrayList<>(buildings), finalBuildersCount,
+                        finalMeleeCount, finalRangeCount, builderChief, maintenance.getMaintenanceIds());
+            }
+        });
+
+        myExecutor.execute(new Runnable() {
+            public void run() {
+                maintenance.setActive(1);
+                maintenance.activate(playerView, me, filledCells, new ArrayList<>(buildings));
             }
         });
 
 
 
-        while(warlord.getActive() != 2 || prince.getActive() != 2){System.out.println("DEBUG");}
+        while(warlord.getActive() != 2 || prince.getActive() != 2 || maintenance.getActive() != 2){;}
         warlord.setActive(0);
         prince.setActive(0);
-
-        System.out.println("Actions performed");
-
-        ConcurrentHashMap actions = new ConcurrentHashMap();
-        actions.putAll(warlord.getResult());
-        actions.putAll(prince.getResult());
+        maintenance.setActive(0);
 
 
         var result = new Action(new HashMap<>()); // Список действий
-        //result.getEntityActions().putAll(warlord.getResult());
-        result.getEntityActions().putAll(actions);
+        result.getEntityActions().putAll(warlord.getResult());
+        result.getEntityActions().putAll(prince.getResult());
+        result.getEntityActions().putAll(maintenance.getResult());
 
         return result;
     }
