@@ -4,8 +4,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 
-public class Warlord extends Thread { // Управляет только боевыми юнитами
-    volatile boolean active = false;
+public class Warlord /*extends Thread*/ { // Управляет только боевыми юнитами
+    volatile int active = 0; // Статус активности. 0 - не активен. 1 - активен. 2 - завершил работу
 
     PlayerView playerView;
     ArrayList<Entity> entities;
@@ -21,15 +21,19 @@ public class Warlord extends Thread { // Управляет только бое�
     public Warlord() {
     }
 
-    public void activate(PlayerView playerView, ArrayList<Entity> warlordEntities, HashSet<Integer> aliveEnemies, HashMap<Integer, Integer> enemyPositions){
+    /*public void activate(PlayerView playerView, ArrayList<Entity> warlordEntities, HashSet<Integer> aliveEnemies, HashMap<Integer, Integer> enemyPositions){
         this.playerView = playerView;
         this.entities = warlordEntities;
         this.aliveEnemies = aliveEnemies;
         this.enemyPositions = enemyPositions;
         active = true;
+    }*/
+
+    public void setActive(int active) {
+        this.active = active;
     }
 
-    public boolean isActive(){
+    public int getActive() {
         return active;
     }
 
@@ -62,70 +66,64 @@ public class Warlord extends Thread { // Управляет только бое�
         return result;
     }
 
-    public void run(){
-        while(true){
-            if(active){
-                System.out.println("ACTION");
-                result = new HashMap<>();
-                var my_id = playerView.getMyId(); // Собственный Id
-                for(var entity : entities){
-                    var properties = playerView.getEntityProperties().get(entity.getEntityType());
+    public void activate(PlayerView playerView, ArrayList<Entity> warlordEntities, HashSet<Integer> aliveEnemies, HashMap<Integer, Integer> enemyPositions){
+        System.out.println("WARLORD THREAD");
+        this.playerView = playerView;
+        this.entities = warlordEntities;
+        this.aliveEnemies = aliveEnemies;
+        this.enemyPositions = enemyPositions;
 
-                    MoveAction moveAction = null;
-                    if(aliveEnemies != null) {
-                        for (int position = 0; position < 3; position++) {
-                            if (aliveEnemies.contains(enemyPositions.get(position)) == true) {
-                                moveAction = new MoveAction(getAttackPoint(position), true, true);
-                                //System.out.println("Attack " + position);
-                                break;
-                            }
-                        }
-                    }
-                    else {
-                        //System.out.println("Attack default");
-                        moveAction = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
-                                playerView.getMapSize() - 1), true, true);
-                    }
-                    BuildAction buildAction = null;
-                    AttackAction attackAction = new AttackAction(
-                            null,
-                            new AutoAttack(
-                                    properties.getSightRange(),
-                                    turretTargets
-                            )
-                    );
+        result = new HashMap<>();
+        var my_id = playerView.getMyId(); // Собственный Id
+        for(var entity : entities){
+            var properties = playerView.getEntityProperties().get(entity.getEntityType());
 
-                    if(entity.getEntityType() == EntityType.TURRET) { // Турель
-                        moveAction = null;
-                        attackAction = new AttackAction(
-                                null,
-                                new AutoAttack(
-                                        properties.getSightRange(),
-                                        turretTargets
-                                )
-                        );
+            MoveAction moveAction = null;
+            if(aliveEnemies != null) {
+                for (int position = 0; position < 3; position++) {
+                    if (aliveEnemies.contains(enemyPositions.get(position)) == true) {
+                        moveAction = new MoveAction(getAttackPoint(position), true, true);
+                        //System.out.println("Attack " + position);
+                        break;
                     }
-
-                    result.put(
-                            entity.getId(),
-                            new EntityAction(
-                                    moveAction,
-                                    buildAction,
-                                    attackAction,
-                                    null
-                            )
-                    );
                 }
-                active = false;
             }
             else {
-                try {
-                    Thread.sleep(10);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                }
+                //System.out.println("Attack default");
+                moveAction = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
+                        playerView.getMapSize() - 1), true, true);
             }
-        }
+            BuildAction buildAction = null;
+            AttackAction attackAction = new AttackAction(
+                    null,
+                    new AutoAttack(
+                            properties.getSightRange(),
+                            turretTargets
+                    )
+            );
 
+            if(entity.getEntityType() == EntityType.TURRET) { // Турель
+                moveAction = null;
+                attackAction = new AttackAction(
+                        null,
+                        new AutoAttack(
+                                properties.getSightRange(),
+                                turretTargets
+                        )
+                );
+            }
+
+            result.put(
+                    entity.getId(),
+                    new EntityAction(
+                            moveAction,
+                            buildAction,
+                            attackAction,
+                            null
+                    )
+            );
+        }
+        active = 2;
+        System.out.println("END OF WARLORD THREAD");
     }
 }

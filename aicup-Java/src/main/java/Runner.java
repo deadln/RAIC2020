@@ -32,6 +32,7 @@ public class Runner {
                 new model.ClientMessage.ActionMessage(myStrategy.getAction(getActionMessage.getPlayerView(), getActionMessage.isDebugAvailable() ? debugInterface : null)).writeTo(outputStream);
                 outputStream.flush();
             } else if (message instanceof model.ServerMessage.Finish) {
+                myStrategy.getMyExecutor().shutdown();
                 break;
             } else if (message instanceof model.ServerMessage.DebugUpdate) {
                 model.ServerMessage.DebugUpdate debugUpdateMessage = (model.ServerMessage.DebugUpdate) message;

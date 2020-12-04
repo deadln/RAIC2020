@@ -1,8 +1,14 @@
+import com.sun.source.tree.SynchronizedTree;
 import model.*;
 
-import java.util.*;//2|0
-//                   P|1
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 public class MyStrategy {
+    ExecutorService myExecutor;
+
     Player me; // Объект самого игрока
     Warlord warlord;
     Prince prince;
@@ -13,11 +19,15 @@ public class MyStrategy {
     Entity builderChief;
 
     public MyStrategy() {
+        //myExecutor = Executors.newCachedThreadPool();
+        myExecutor = Executors.newFixedThreadPool(2);
         enemyPositions = new HashMap<>();
         warlord = new Warlord();
-        warlord.start();
         prince = new Prince();
-        prince.start();
+    }
+
+    public ExecutorService getMyExecutor() {
+        return myExecutor;
     }
 
     boolean isUnit(EntityType ent_type){ // Является ли юнитом
@@ -48,6 +58,7 @@ public class MyStrategy {
     }
 
     public Action getAction(PlayerView playerView, DebugInterface debugInterface) {
+        System.out.println("---------------------------------------------------");
         if(playerView.getCurrentTick() == 0){ // Стартовые действия
             enemyPositions = new HashMap<>();
         }
@@ -60,8 +71,8 @@ public class MyStrategy {
 
         }
 
-        ArrayList<Entity> princeEntities = new ArrayList<>(); // Действия князя
-        ArrayList<Entity> warlordEntities = new ArrayList<>(); // Действия воина
+        ArrayList<Entity> princeEntities = new ArrayList<>(); // Сущности князя
+        ArrayList<Entity> warlordEntities = new ArrayList<>(); // Сущности воина
 
         int buildersCount = 0; // Кол-во строителей
         int meleeCount = 0; // Кол-во милишников
@@ -73,12 +84,15 @@ public class MyStrategy {
         aliveEnemies = new HashSet<>();
 
         //Поиск занятых клеток
-        HashSet<Pair> filledCells = new HashSet<>();
+        HashSet<Pair> filledCells = new HashSet<>(); // ПЕРЕРАБОТАТЬ
 
         for(var entity: playerView.getEntities()){ // Проход по сущностям
+            if(entity.getId() == 0){
+                System.out.println("ID 0: " + entity.getEntityType() + " " + entity.getPosition().getX() + " " + entity.getPosition().getY());
+            }
 
             var properties = playerView.getEntityProperties().get(entity.getEntityType());
-            // Поиск занятых клеток
+            // Поиск занятых клеток ПЕРЕРАБОТАТЬ
             for(int x = entity.getPosition().getX(); x < entity.getPosition().getX() + properties.getSize(); x++){
                 for(int y = entity.getPosition().getY(); y < entity.getPosition().getY() + properties.getSize(); y++){
                     filledCells.add(new Pair(x,y));
@@ -143,15 +157,39 @@ public class MyStrategy {
 
 
         //Warlord warlord = new Warlord(playerView, warlordEntities, aliveEnemies, enemyPositions);
-        warlord.activate(playerView, warlordEntities, aliveEnemies, enemyPositions);
-        prince.activate(playerView, me, filledCells, princeEntities, buildersCount, meleeCount, rangeCount, builderChief);
+        myExecutor.execute(new Runnable() {
+            public void run() {
+                warlord.setActive(1);
+                warlord.activate(playerView, warlordEntities, aliveEnemies, enemyPositions);
+            }
+        });
+        int finalBuildersCount = buildersCount;
+        int finalMeleeCount = meleeCount;
+        int finalRangeCount = rangeCount;
+        myExecutor.execute(new Runnable() {
+            @Override
+            public void run() {
+                prince.setActive(1);
+                prince.activate(playerView, me, filledCells, princeEntities, finalBuildersCount, finalMeleeCount, finalRangeCount, builderChief);
+            }
+        });
 
 
-        while(warlord.isActive() || prince.isActive()){;}
+
+        while(warlord.getActive() != 2 || prince.getActive() != 2){System.out.println("DEBUG");}
+        warlord.setActive(0);
+        prince.setActive(0);
+
+        System.out.println("Actions performed");
+
+        ConcurrentHashMap actions = new ConcurrentHashMap();
+        actions.putAll(warlord.getResult());
+        actions.putAll(prince.getResult());
+
 
         var result = new Action(new HashMap<>()); // Список действий
-        result.getEntityActions().putAll(warlord.getResult());
-        result.getEntityActions().putAll(prince.getResult());
+        //result.getEntityActions().putAll(warlord.getResult());
+        result.getEntityActions().putAll(actions);
 
         return result;
     }
