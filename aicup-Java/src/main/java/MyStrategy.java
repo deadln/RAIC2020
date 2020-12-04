@@ -4,6 +4,9 @@ import java.util.*;//2|0
 //                   P|1
 public class MyStrategy {
     Player me; // Объект самого игрока
+    Warlord warlord;
+    Prince prince;
+
     HashMap<Integer, Integer> enemyPositions; // Словарь позиция-id
     HashSet<Integer> aliveEnemies; // id - статус
     int builderChiefId = -1; // Прораб. Строит и ремонтирует здания
@@ -11,6 +14,10 @@ public class MyStrategy {
 
     public MyStrategy() {
         enemyPositions = new HashMap<>();
+        warlord = new Warlord();
+        warlord.start();
+        prince = new Prince();
+        prince.start();
     }
 
     boolean isUnit(EntityType ent_type){ // Является ли юнитом
@@ -43,15 +50,9 @@ public class MyStrategy {
     public Action getAction(PlayerView playerView, DebugInterface debugInterface) {
         if(playerView.getCurrentTick() == 0){ // Стартовые действия
             enemyPositions = new HashMap<>();
-            // Найти своего игрока и врагов
-            for(var player : playerView.getPlayers()){ //
-                if(player.getId() == playerView.getMyId()){
-                    me = player;
-                }
-            }
-
         }
 
+        // Найти своего игрока и врагов
         for(var player : playerView.getPlayers()){ //
             if(player.getId() == playerView.getMyId()){
                 me = player;
@@ -62,11 +63,11 @@ public class MyStrategy {
         ArrayList<Entity> princeEntities = new ArrayList<>(); // Действия князя
         ArrayList<Entity> warlordEntities = new ArrayList<>(); // Действия воина
 
-        int buildersCount = 0;
-        int meleeCount = 0;
-        int rangeCount = 0;
+        int buildersCount = 0; // Кол-во строителей
+        int meleeCount = 0; // Кол-во милишников
+        int rangeCount = 0; // Кол-во ренжей
 
-        Entity builderChiefCandidate = null;
+        Entity builderChiefCandidate = null; // Строитель домов
         boolean builderChiefAlive = false;
 
         aliveEnemies = new HashSet<>();
@@ -141,13 +142,12 @@ public class MyStrategy {
         }
 
 
-        Warlord warlord = new Warlord(playerView, warlordEntities, aliveEnemies, enemyPositions);
-        Prince prince = new Prince(playerView, me, filledCells, princeEntities, buildersCount, meleeCount, rangeCount, builderChief);
-        warlord.start();
-        prince.start();
+        //Warlord warlord = new Warlord(playerView, warlordEntities, aliveEnemies, enemyPositions);
+        warlord.activate(playerView, warlordEntities, aliveEnemies, enemyPositions);
+        prince.activate(playerView, me, filledCells, princeEntities, buildersCount, meleeCount, rangeCount, builderChief);
 
 
-        while(warlord.isAlive() || prince.isAlive()){;}
+        while(warlord.isActive() || prince.isActive()){;}
 
         var result = new Action(new HashMap<>()); // Список действий
         result.getEntityActions().putAll(warlord.getResult());
@@ -159,7 +159,6 @@ public class MyStrategy {
         debugInterface.send(new DebugCommand.Clear());
         debugInterface.getState();
     }
-
 
 
 
