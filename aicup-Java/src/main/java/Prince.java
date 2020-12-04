@@ -150,6 +150,21 @@ public class Prince extends Thread {//Управляет только строи
         return result;
     }
 
+    Vec2Int getUnitBuildPosition(Entity entity, int size){
+        if (playerView.getCurrentTick() % 2 == 0){
+            return new Vec2Int(
+                    entity.getPosition().getX() + size,
+                    entity.getPosition().getY() + size - 1
+            );
+        }
+        else{
+            return new Vec2Int(
+                    entity.getPosition().getX() + size,
+                    entity.getPosition().getY() + size - 2
+            );
+        }
+    }
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
@@ -250,13 +265,11 @@ public class Prince extends Thread {//Управляет только строи
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
+                Vec2Int position = getUnitBuildPosition(entity, properties.getSize());
                 if(buildersCount <= provision * BUILDERS_RATIO){
                     build_action = new BuildAction( // Построить юнита
                             entity_type,
-                            new Vec2Int(
-                                    entity.getPosition().getX() + properties.getSize(),
-                                    entity.getPosition().getY() + properties.getSize() - 1
-                            )
+                            position
                     );
                 }
             }
@@ -265,13 +278,11 @@ public class Prince extends Thread {//Управляет только строи
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
+                Vec2Int position = getUnitBuildPosition(entity, properties.getSize());
                 if(meleeCount <= rangeCount)
                     build_action = new BuildAction( // Построить юнита
                             entity_type,
-                            new Vec2Int(
-                                    entity.getPosition().getX() + properties.getSize(),
-                                    entity.getPosition().getY() + properties.getSize() - 1
-                            )
+                            position
                     );
             }
 
@@ -279,13 +290,11 @@ public class Prince extends Thread {//Управляет только строи
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
+                Vec2Int position = getUnitBuildPosition(entity, properties.getSize());
                 if(rangeCount <= meleeCount)
                     build_action = new BuildAction( // Построить юнита
                             entity_type,
-                            new Vec2Int(
-                                    entity.getPosition().getX() + properties.getSize(),
-                                    entity.getPosition().getY() + properties.getSize() - 1
-                            )
+                            position
                     );
             }
 
