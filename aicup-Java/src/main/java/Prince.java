@@ -23,6 +23,7 @@ public class Prince{//Управляет только строителями
     double BUILDERS_RATIO = 0.5;
     double RANGED_RATIO = 0.5; //До TTF:  0.7 - 10851 , 0.5 - 10624
     int TIME_TO_FARM = 250; // После TTF: 0.7 146745, 0.5 - 140859
+    int INAPPROPRIATE_PROVISION_REMAINING = 9;
 
 
 
@@ -78,11 +79,14 @@ public class Prince{//Управляет только строителями
             }
         }
         //Проверка на чистоту у стены слева
-        if(x != 0) {
+        if(x > 0) {
             for (int yy = y; yy < y + size; yy++) {
                 if (filledCells[x - 1][yy] != 0)
                     return false;
             }
+        }
+        else{
+            return false;
         }
 
         return true;
@@ -153,6 +157,89 @@ public class Prince{//Управляет только строителями
                     entity.getPosition().getY() + size - 2
             );
         }
+    }
+
+    Entity getEnemyNearby(Entity entity){
+        var size = playerView.getEntityProperties().get(entity.getEntityType()).getSize();
+        Entity nearestEnemy = null;
+        double distance = playerView.getMapSize();
+
+
+        for(int i = entity.getPosition().getX() - 6 - 1;i < entity.getPosition().getX() + size + 6; i++){
+            if(i < 0 || i >= playerView.getMapSize())
+                continue;
+            for(int j = entity.getPosition().getY() + size + 6 ;j > entity.getPosition().getY() - 6 - 1; j--){
+                if(j < 0 || j >= playerView.getMapSize())
+                    continue;
+                //if(i*i + j*j <= RED_ALERT_RADIUS*RED_ALERT_RADIUS){
+                    /*if(filledCells[i][j] != 0)
+                        System.out.println(filledCells[i][j]);*/
+                Entity enemy = entityById.get(filledCells[i][j]);
+
+                if(enemy == null || enemy.getPlayerId() == null || enemy.getPlayerId() == playerView.getMyId() ||
+                        (enemy.getEntityType() != EntityType.RANGED_UNIT && enemy.getEntityType() != EntityType.MELEE_UNIT)){
+                    //System.out.println("Not enemy");
+                    continue;}
+                double dis = getDistance(new Vec2Int(entity.getPosition().getX() + size - 1,
+                        entity.getPosition().getY() + size - 1), enemy.getPosition());
+                if(enemy != null && dis < distance){
+                    nearestEnemy = enemy;
+                    distance = dis;
+                }
+                //}
+            }
+        }
+        if(nearestEnemy != null)
+            System.out.println("Found enemy at " + nearestEnemy.getPosition().getX() + " " + nearestEnemy.getPosition().getY());
+        return nearestEnemy;
+    }
+
+    double getDistance(Vec2Int a, Vec2Int b){ // Расстояние между точками
+        return Math.hypot(Math.abs(a.getX() - b.getX()), Math.abs(a.getY() - b.getY()));
+    }
+
+    MoveAction getEscapeRoute(Entity entity, Entity enemy)
+    {
+        int x = entity.getPosition().getX();
+        int y = entity.getPosition().getY();
+
+        if(enemy.getPosition().getX() < entity.getPosition().getX())
+            x += 1;
+        if(enemy.getPosition().getY() > entity.getPosition().getY())
+            y -= 1;
+        if(enemy.getPosition().getX() > entity.getPosition().getX())
+            x -= 1;
+        if(enemy.getPosition().getY() < entity.getPosition().getY())
+            y += 1;
+
+        if(x < 0){
+            x = 0;
+            y = getNearestEdge(y);
+        }
+        if(y < 0){
+            y = 0;
+            x = getNearestEdge(x);
+        }
+        if(x >= playerView.getMapSize()){
+            x = playerView.getMapSize() - 1;
+            y = getNearestEdge(y);
+        }
+        if(y >= playerView.getMapSize()){
+            y = playerView.getMapSize() - 1;
+            x = getNearestEdge(x);
+        }
+
+        return new MoveAction(
+                new Vec2Int(x,y), true, true
+        );
+    }
+
+    int getNearestEdge(int x){
+        if(x < playerView.getMapSize()){
+            return 0;
+        }
+        else
+            return playerView.getMapSize() - 1;
     }
 
     //boolean isEnemyInRange()
@@ -227,7 +314,7 @@ public class Prince{//Управляет только строителями
                     }
             }
 
-                if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= 10){
+                if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING){
                     Vec2Int placeForHouse = getPlaceForHouse();
                     System.out.println("Gotta build the house at " + placeForHouse.getX() + " " + placeForHouse.getY());
                     move_action = new MoveAction(
@@ -259,15 +346,27 @@ public class Prince{//Управляет только строителями
                 }
             }
             else if(!maintenanceIds.contains(entity.getId())){
-                move_action = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
-                        playerView.getMapSize() - 1), true, true);
-                attack_action = new AttackAction(
-                        null,
-                        new AutoAttack(
-                                properties.getSightRange(),
-                                new EntityType[] {EntityType.RESOURCE}
-                        )
-                );
+                var menace = getEnemyNearby(entity);
+                if(menace != null){ // Побег в случае угрозы поблизости
+                    move_action = getEscapeRoute(entity, menace);
+                    attack_action = null;
+                }
+                else {
+                    if (entity.getId() % 2 == 0)
+                        move_action = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
+                                0), true, true);
+                    else
+                        move_action = new MoveAction(new Vec2Int(0, // Послать в другой конец карты
+                                playerView.getMapSize() - 1), true, true);
+
+                    attack_action = new AttackAction(
+                            null,
+                            new AutoAttack(
+                                    properties.getSightRange(),
+                                    new EntityType[]{EntityType.RESOURCE}
+                                    )
+                        );
+                }
             }
 
 

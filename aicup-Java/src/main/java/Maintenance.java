@@ -43,11 +43,11 @@ public class Maintenance {
         return Math.hypot(Math.abs(a.getX() - b.getX()), Math.abs(a.getY() - b.getY()));
     }
 
-    Vec2Int getFarthestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points){ // Самая дальняя точка
+    Vec2Int getFarthestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points, int size){ // Самая дальняя точка
         double distance = (double) playerView.getMapSize(), dis;
         if(points.size() == 0)
             return new Vec2Int(0,0);
-        Vec2Int result = points.get(0);
+        Vec2Int result = getAnyPoint(points);
         int far_y = playerView.getMapSize();
         for (var point : points) {
             dis = Math.hypot(Math.abs(entityPosition.getX() - point.getX()), Math.abs(entityPosition.getY() - point.getY()));
@@ -60,7 +60,7 @@ public class Maintenance {
         return result;
     }
 
-    Vec2Int getAnyPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points){ // Любая точка
+    Vec2Int getAnyPoint(ArrayList<Vec2Int> points){ // Любая точка
         if(points.size() == 0)
             return new Vec2Int(0,0);
         return points.get((int) (Math.random() * points.size()));
@@ -143,13 +143,18 @@ public class Maintenance {
             }
         }
 
+
         if(target != null){
+            var targetProperties = playerView.getEntityProperties().get(target.getEntityType());
             for(var entity : maintenance){
+                var fp = getFarthestPoint(entity.getPosition(),getSides(target), targetProperties.getSize());
+                System.out.println("Point to repari : " + fp.getX() + " " + fp.getY());
+
                 result.put(
                         entity.getId(),
                         new EntityAction(
                                 new MoveAction(
-                                        getFarthestPoint(entity.getPosition(),getSides(target)),
+                                        fp,
                                         true,
                                         true
                                 ),
@@ -161,6 +166,7 @@ public class Maintenance {
                         )
                 );
             }
+            System.out.println();
         }
 
         if(result.size() == 0 && playerView.getCurrentTick() < TIME_TO_FARM){
@@ -191,8 +197,8 @@ public class Maintenance {
                 result.put(
                         entity.getId(),
                         new EntityAction(
-                                new MoveAction(new Vec2Int(12, // Послать в другой конец карты
-                                        12), true, true),
+                                new MoveAction(new Vec2Int(4, // Послать в другой конец карты
+                                        4), true, true),
                                 null,
                                 null,
                                 null

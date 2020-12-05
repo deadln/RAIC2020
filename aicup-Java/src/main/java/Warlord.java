@@ -79,14 +79,11 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                     /*if(filledCells[i][j] != 0)
                         System.out.println(filledCells[i][j]);*/
                     Entity enemy = entityById.get(filledCells[i][j]);
-                    if(enemy != null && enemy.getPlayerId() != null && enemy.getPlayerId() != playerView.getMyId()){
-                        System.out.println("Supposed to be enemy: " + enemy.getPosition().getX() + " " + enemy.getPosition().getY());
-                    }
+
                     if(enemy == null || enemy.getPlayerId() == null || enemy.getPlayerId() == playerView.getMyId() ||
                             (enemy.getEntityType() != EntityType.RANGED_UNIT && enemy.getEntityType() != EntityType.MELEE_UNIT)){
                         //System.out.println("Not enemy");
                         continue;}
-                    System.out.println("Enemy: " + enemy.getPosition().getX() + " " + enemy.getPosition().getY());
                     double dis = getDistance(new Vec2Int(building.getPosition().getX() + size - 1,
                             building.getPosition().getY() + size - 1), enemy.getPosition());
                     if(enemy != null && dis < distance){
