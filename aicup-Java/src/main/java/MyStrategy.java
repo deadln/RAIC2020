@@ -188,13 +188,11 @@ public class MyStrategy {
         myExecutor.execute(new Runnable() {
             public void run() {
                 warlord.setActive(1);
-                warlord.activate(playerView, warlordEntities, aliveEnemies, enemyPositions);
+                warlord.activate(playerView, warlordEntities, aliveEnemies, enemyPositions, buildings, filledCells,
+                        entityById);
             }
         });
 
-        System.out.println(buildersCount);
-        System.out.println(meleeCount);
-        System.out.println(rangeCount);
 
         int finalBuildersCount = buildersCount;
         int finalMeleeCount = meleeCount;

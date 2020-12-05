@@ -21,7 +21,8 @@ public class Prince{//Управляет только строителями
     HashMap<Integer, Entity> entityById;
 
     double BUILDERS_RATIO = 0.5;
-    int TIME_TO_FARM = 250;
+    double RANGED_RATIO = 0.5; //До TTF:  0.7 - 10851 , 0.5 - 10624
+    int TIME_TO_FARM = 250; // После TTF: 0.7 146745, 0.5 - 140859
 
 
 
@@ -39,10 +40,8 @@ public class Prince{//Управляет только строителями
     int getProvisionSumm(PlayerView playerView) // Сумма всей популяции
     {
         int sum = 0;
-        for(var entity : playerView.getEntities())
+        for(var entity : buildings)
         {
-            if(entity.getPlayerId() == null || entity.getPlayerId() != playerView.getMyId())
-                continue;
             var properties = playerView.getEntityProperties().get(entity.getEntityType());
             sum += properties.getPopulationProvide();
         }
@@ -179,12 +178,18 @@ public class Prince{//Управляет только строителями
         this.builderChief = builderChief;
 
         var provision = getProvisionSumm(playerView); // Текущая провизия
+
         if(me.getResource() >= 150){
             BUILDERS_RATIO = 0.35;
         }
         else{
             BUILDERS_RATIO = 0.5;
         }
+
+        /*if(playerView.getCurrentTick() < TIME_TO_FARM){
+            RANGED_RATIO = 0.5;
+        }*/
+
         result = new HashMap<>(); // Результат
         var my_id = playerView.getMyId(); // Собственный Id
 
@@ -222,8 +227,7 @@ public class Prince{//Управляет только строителями
                     }
             }
 
-                if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= 5){
-                    System.out.println("Time to build the house!");
+                if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= 10){
                     Vec2Int placeForHouse = getPlaceForHouse();
                     move_action = new MoveAction(
                             new Vec2Int(placeForHouse.getX(),placeForHouse.getY() - 1),
@@ -279,29 +283,31 @@ public class Prince{//Управляет только строителями
                 }
             }
 
-            if (entity.getEntityType() == EntityType.MELEE_BASE) // Строительство ближников
+            if (entity.getEntityType() == EntityType.RANGED_BASE) // Строительство ближников
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
                 Vec2Int position = getUnitBuildPosition(entity, properties.getSize());
-                if(meleeCount <= rangeCount)
+                if(rangeCount <= RANGED_RATIO * (rangeCount + meleeCount))
                     build_action = new BuildAction( // Построить юнита
                             entity_type,
                             position
                     );
             }
 
-            if (entity.getEntityType() == EntityType.RANGED_BASE) // Строительство ближников
+            if (entity.getEntityType() == EntityType.MELEE_BASE) // Строительство ближников
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
                 Vec2Int position = getUnitBuildPosition(entity, properties.getSize());
-                if(rangeCount <= meleeCount)
+                if(meleeCount <= (1 - RANGED_RATIO) * (rangeCount + meleeCount))
                     build_action = new BuildAction( // Построить юнита
                             entity_type,
                             position
                     );
             }
+
+
 
 
             result.put(

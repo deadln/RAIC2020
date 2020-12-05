@@ -113,7 +113,6 @@ public class Maintenance {
         for(var building : buildings){
             var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
             if(building.getHealth() < propertiesBuilding.getMaxHealth()){
-                System.out.println("Gotta repair building at " + building.getPosition().getX() + " " + building.getPosition().getY());
                 for(var entity : maintenance){
                     result.put(
                             entity.getId(),
