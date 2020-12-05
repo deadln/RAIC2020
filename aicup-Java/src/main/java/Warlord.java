@@ -29,7 +29,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
     double MEELE_POWER = 1;
     double RANGE_POWER = 1.1;
     double TURRET_POWER = 3.3;
-
+    double DIFFERENCE_TO_ATTACK = 3;
 
 
 
@@ -56,29 +56,62 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         return Math.hypot(Math.abs(a.getX() - b.getX()), Math.abs(a.getY() - b.getY()));
     }
 
-    Vec2Int getAttackPoint(int position){
-        if (position == 0){
-            return new Vec2Int(
+    Vec2Int getAttackPoint(int position, int targetId){
+        //Поиск угла противника
+        Vec2Int corner;
+        int mod_x = 0;
+        int mod_y = 0;
+        if (position == 0){ // Правый верхний угол
+            corner = new Vec2Int(
                     playerView.getMapSize() - 1,
                     playerView.getMapSize() - 1
             );
+            mod_x = mod_y = playerView.getMapSize() - 1;
         }
-        if (position == 1){
-            return new Vec2Int(
+        else if (position == 1){ // Правый нижний угол
+            corner = new Vec2Int(
                     playerView.getMapSize() - 1,
                     0
             );
+            mod_x = playerView.getMapSize() - 1;
         }
-        if (position == 2){
-            return new Vec2Int(
+        else if (position == 2){ // Левый верхний угол
+            corner = new Vec2Int(
                     0,
                     playerView.getMapSize() - 1
             );
+            mod_y = playerView.getMapSize() - 1;
         }
-        return new Vec2Int(
-                playerView.getMapSize() - 1,
-                playerView.getMapSize() - 1
-        );
+
+
+        corner = new Vec2Int(20,20);
+
+        //Поиск ближайшего к углу юнита
+        double distance = 9000000000.0, dis;
+        Vec2Int targetLocation = null;
+        for(var entity : enemyEntities){
+            if(entity.getPlayerId() != targetId)
+                continue;
+            dis = getDistance(corner, entity.getPosition());
+            if(dis < distance){
+                targetLocation = entity.getPosition();
+                distance = dis;
+            }
+        }
+
+        if(targetLocation != null)
+            return targetLocation;
+        return new Vec2Int(20,20);
+        /*for(int d = 0; d < playerView.getMapSize(); d++) {
+            for (int i = 0; i < d / 2 + 1; i++) {
+                if(filledCells[mod_x - i][mod_y - d - i] != 0 && entityById.get(filledCells[mod_x - i][mod_y - d - i]).getPlayerId() != null &&
+                        entityById.get(filledCells[mod_x - i][mod_y - d - i]).getPlayerId() == targetId)
+                    return new Vec2Int(mod_x - i,mod_y - d - i);
+                if(filledCells[mod_x - d - i][mod_y - i] != 0 && entityById.get(filledCells[mod_x - d - i][mod_y - i]).getPlayerId() != null &&
+                        entityById.get(filledCells[mod_x - d - i][mod_y - i]).getPlayerId() == targetId)
+                    return new Vec2Int(mod_x - d - i,mod_y - i);
+            }
+        }*/
     }
 
     Entity getEnemyNearby(Entity building){
@@ -93,14 +126,11 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
             for(int j = building.getPosition().getY() + size + RED_ALERT_RADIUS ;j > building.getPosition().getY() - RED_ALERT_RADIUS - 1; j--){
                 if(j < 0 || j >= playerView.getMapSize())
                     continue;
-                //if(i*i + j*j <= RED_ALERT_RADIUS*RED_ALERT_RADIUS){
-                    /*if(filledCells[i][j] != 0)
-                        System.out.println(filledCells[i][j]);*/
+                //if(i*i + j*j <= RED_ALERT_RADIUS*RED_ALERT_RADIUS){*/
                     Entity enemy = entityById.get(filledCells[i][j]);
 
                     if(enemy == null || enemy.getPlayerId() == null || enemy.getPlayerId() == playerView.getMyId() ||
                             (enemy.getEntityType() != EntityType.RANGED_UNIT && enemy.getEntityType() != EntityType.MELEE_UNIT)){
-                        //System.out.println("Not enemy");
                         continue;}
                     double dis = getDistance(new Vec2Int(building.getPosition().getX() + size - 1,
                             building.getPosition().getY() + size - 1), enemy.getPosition());
@@ -111,8 +141,6 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                 //}
             }
         }
-        if(nearestEnemy != null)
-            System.out.println("Found enemy at " + nearestEnemy.getPosition().getX() + " " + nearestEnemy.getPosition().getY());
         return nearestEnemy;
     }
 
@@ -194,17 +222,33 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                         true
                 );
             }
+            //Приказ на атаку
             else if(aliveEnemies != null) {
+                double power = 90000000, pow; // IT"S OVER NINE THOUSAND!
+                int target = -1;
+                int attackPosition = -1;
                 for (int position = 0; position < 3; position++) {
-                    if (aliveEnemies.contains(enemyPositions.get(position)) == true) {
-                        moveAction = new MoveAction(getAttackPoint(position), true, true);
-                        //System.out.println("Attack " + position);
-                        break;
+                    int enemyId = enemyPositions.get(position);
+                    if (aliveEnemies.contains(enemyId)) { // Если враг жив
+                        pow = playersPower.get(enemyId);
+                        if(playersPower.get(playerView.getMyId()) - pow >= DIFFERENCE_TO_ATTACK)
+                        {
+                            target = enemyId;
+                            attackPosition = position;
+                        }
                     }
+                }
+                if(target == -1){
+                    moveAction = new MoveAction(new Vec2Int(20,20), true, false);
+                }
+                else{
+                    var attackPoint = getAttackPoint(attackPosition, target);
+                    System.out.println("TARGET: " + target);
+                    System.out.println("Nearest enemy: " + attackPoint.getX() + " " + attackPoint.getY());
+                    moveAction = new MoveAction(attackPoint, true, true);
                 }
             }
             else {
-                //System.out.println("Attack default");
                 moveAction = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
                         playerView.getMapSize() - 1), true, true);
             }
