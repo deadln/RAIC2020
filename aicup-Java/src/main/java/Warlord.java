@@ -27,11 +27,12 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
 
     HashMap<Integer, Double> playersPower;
 
+    //Переменные
     int RED_ALERT_RADIUS = 10;
     double MEELE_POWER = 1;
     double RANGE_POWER = 1.1;
     double TURRET_POWER = 3.3;
-    double DIFFERENCE_TO_ATTACK = 3;
+    double DIFFERENCE_TO_ATTACK = 7;
 
 
 
@@ -132,7 +133,9 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                     Entity enemy = entityById.get(filledCells[i][j]);
 
                     if(enemy == null || enemy.getPlayerId() == null || enemy.getPlayerId() == playerView.getMyId() ||
-                            (enemy.getEntityType() != EntityType.RANGED_UNIT && enemy.getEntityType() != EntityType.MELEE_UNIT)){
+                            (enemy.getEntityType() != EntityType.RANGED_UNIT &&
+                                    enemy.getEntityType() != EntityType.MELEE_UNIT &&
+                                    enemy.getEntityType() != EntityType.BUILDER_UNIT)){
                         continue;}
                     double dis = getDistance(new Vec2Int(building.getPosition().getX() + size - 1,
                             building.getPosition().getY() + size - 1), enemy.getPosition());
@@ -285,6 +288,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                 }
                 if(target == -1){
                     moveAction = new MoveAction(new Vec2Int(20,20), true, false);
+                    attackAction = null;
                 }
                 else{
                     var attackPoint = getAttackPoint(attackPosition, target);

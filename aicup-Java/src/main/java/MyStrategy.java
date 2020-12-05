@@ -20,6 +20,8 @@ public class MyStrategy {
     int builderChiefId = -1; // Прораб. Строит и ремонтирует здания
     Entity builderChief;
 
+    //boolean[][] dfs_field; // TODO Определение карты с кучей ресов в центре
+
     int MAINTENANCE_MAX_COUNT = 3;
 
     public MyStrategy() {
@@ -185,6 +187,7 @@ public class MyStrategy {
         }
         maintenance.setMaintenance(maintenanceEntities);
 
+        //Определение
 
         //Warlord warlord = new Warlord(playerView, warlordEntities, aliveEnemies, enemyPositions);
         myExecutor.execute(new Runnable() {
