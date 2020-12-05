@@ -4,6 +4,8 @@ import java.util.ArrayList; // милишник = 1
 import java.util.HashMap; // лучник = 1.1
 import java.util.HashSet; // Турель = 3.3
 
+//TODO Функция для определения ближайшего юнита
+
 public class Warlord /*extends Thread*/ { // Управляет только боевыми юнитами
     volatile int active = 0; // Статус активности. 0 - не активен. 1 - активен. 2 - завершил работу
     boolean redAlert = false;
@@ -165,6 +167,40 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         return result;
     }
 
+    Vec2Int isFarAway(Entity unit){
+        int x = unit.getPosition().getX();
+        int y = unit.getPosition().getY();
+
+        if(x != 0 && y != 0 && x != playerView.getMapSize() - 1 && y != playerView.getMapSize() - 1)
+        {
+            if(isOurWarrior(entityById.get(filledCells[x + 1][y + 1])) || isOurWarrior(entityById.get(filledCells[x + 1][y])) ||
+                    isOurWarrior(entityById.get(filledCells[x + 1][y - 1])) || isOurWarrior(entityById.get(filledCells[x][y - 1])) ||
+                    isOurWarrior(entityById.get(filledCells[x - 1][y - 1])) || isOurWarrior(entityById.get(filledCells[x - 1][y])) ||
+                    isOurWarrior(entityById.get(filledCells[x - 1][y + 1])) || isOurWarrior(entityById.get(filledCells[x][y + 1])))
+                return null;
+        }
+
+        double distance = 9000000, dis;
+        Vec2Int ourPositions = null;
+        for(var entity : entities){
+            if(!isOurWarrior(entity))
+                continue;
+            dis = getDistance(unit.getPosition(), entity.getPosition());
+            if(dis < distance){
+                distance = dis;
+                ourPositions = entity.getPosition();
+            }
+        }
+        return ourPositions;
+    }
+
+    boolean isOurWarrior(Entity entity){
+        if(entity != null && entity.getPlayerId() != null && entity.getPlayerId() == playerView.getMyId() &&
+                (entity.getEntityType() == EntityType.MELEE_UNIT || entity.getEntityType() == EntityType.RANGED_UNIT))
+            return true;
+        return false;
+    }
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
@@ -213,6 +249,15 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
             var properties = playerView.getEntityProperties().get(entity.getEntityType());
 
             MoveAction moveAction = null;
+            BuildAction buildAction = null;
+            AttackAction attackAction = new AttackAction(
+                    null,
+                    new AutoAttack(
+                            properties.getSightRange(),
+                            turretTargets
+                    )
+            );
+
             if(nearestEnemy != null && entity.getPosition().getX() < playerView.getMapSize() / 2 &&
                     entity.getPosition().getY() < playerView.getMapSize() / 2){ //Признак "Враг у ворот"
                 System.out.println("RED ALERT");
@@ -248,18 +293,14 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                     moveAction = new MoveAction(attackPoint, true, true);
                 }
             }
-            else {
-                moveAction = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
-                        playerView.getMapSize() - 1), true, true);
+            var ourPositions = isFarAway(entity);
+            if(ourPositions != null){
+                if(getDistance(ourPositions, entity.getPosition()) > 3){
+                    moveAction = new MoveAction(ourPositions, true, true);
+                    attackAction = null;
+                }
             }
-            BuildAction buildAction = null;
-            AttackAction attackAction = new AttackAction(
-                    null,
-                    new AutoAttack(
-                            properties.getSightRange(),
-                            turretTargets
-                    )
-            );
+
 
             if(entity.getEntityType() == EntityType.TURRET) { // Турель
                 moveAction = null;
