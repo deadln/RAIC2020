@@ -82,6 +82,7 @@ public class MyStrategy {
         ArrayList<Entity> maintenanceEntities = new ArrayList<>(); // Ремонтники
         ArrayList<Entity> maintenanceCandidates = new ArrayList<>(); // Кандидаты в ремонтники
         ArrayList<Entity> buildings = new ArrayList<>();
+        ArrayList<Entity> enemyEntities = new ArrayList<>();
 
 
         int buildersCount = 0; // Кол-во строителей
@@ -102,7 +103,7 @@ public class MyStrategy {
             entityById.put(entity.getId(), entity);
 
             var properties = playerView.getEntityProperties().get(entity.getEntityType());
-            // Поиск занятых клеток ПЕРЕРАБОТАТЬ
+
             for(int x = entity.getPosition().getX(); x < entity.getPosition().getX() + properties.getSize(); x++){
                 for(int y = entity.getPosition().getY(); y < entity.getPosition().getY() + properties.getSize(); y++){
                     filledCells[x][y] = entity.getId();
@@ -110,6 +111,7 @@ public class MyStrategy {
             }
 
             if(entity.getPlayerId() != null && entity.getPlayerId() != playerView.getMyId()){
+                enemyEntities.add(entity);
                 aliveEnemies.add(entity.getPlayerId());
                 //Поиск стартовых позиций врагов
                 if(playerView.getCurrentTick() == 0) {
@@ -189,7 +191,7 @@ public class MyStrategy {
             public void run() {
                 warlord.setActive(1);
                 warlord.activate(playerView, warlordEntities, aliveEnemies, enemyPositions, buildings, filledCells,
-                        entityById);
+                        entityById, enemyEntities);
             }
         });
 
@@ -202,7 +204,7 @@ public class MyStrategy {
             public void run() {
                 prince.setActive(1);
                 prince.activate(playerView, me, filledCells, entityById, princeEntities, new ArrayList<>(buildings), finalBuildersCount,
-                        finalMeleeCount, finalRangeCount, builderChief, maintenance.getMaintenanceIds());
+                        finalMeleeCount, finalRangeCount, builderChief, maintenance.getMaintenanceIds(), warlord.isRedAlert());
             }
         });
 

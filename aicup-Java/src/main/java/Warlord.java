@@ -1,14 +1,16 @@
 import model.*;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.ArrayList; // милишник = 1
+import java.util.HashMap; // лучник = 1.1
+import java.util.HashSet; // Турель = 3.3
 
 public class Warlord /*extends Thread*/ { // Управляет только боевыми юнитами
     volatile int active = 0; // Статус активности. 0 - не активен. 1 - активен. 2 - завершил работу
+    boolean redAlert = false;
 
     PlayerView playerView;
     ArrayList<Entity> entities;
+    ArrayList<Entity> enemyEntities;
     HashMap<Integer, EntityAction> result;
     HashSet<Integer> aliveEnemies;
     HashMap<Integer, Integer> enemyPositions;
@@ -21,7 +23,15 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
     int[][] filledCells;
     HashMap<Integer, Entity> entityById;
 
+    HashMap<Integer, Double> playersPower;
+
     int RED_ALERT_RADIUS = 10;
+    double MEELE_POWER = 1;
+    double RANGE_POWER = 1.1;
+    double TURRET_POWER = 3.3;
+
+
+
 
     public Warlord() {
     }
@@ -32,6 +42,14 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
 
     public int getActive() {
         return active;
+    }
+
+    public boolean isRedAlert() {
+        return redAlert;
+    }
+
+    public void setRedAlert(boolean redAlert) {
+        this.redAlert = redAlert;
     }
 
     double getDistance(Vec2Int a, Vec2Int b){ // Расстояние между точками
@@ -98,13 +116,34 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         return nearestEnemy;
     }
 
+    HashMap<Integer, Double> getPlayersPower(){
+        HashMap<Integer, Double> result = new HashMap<>();
+        ArrayList<Entity> list = new ArrayList<>();
+        list.addAll(entities);
+        list.addAll(enemyEntities);
+
+        for(var player : playerView.getPlayers())
+            result.put(player.getId(), 0.0);
+
+        for(var entity : list){
+            if(entity.getEntityType() == EntityType.MELEE_UNIT)
+                result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + MEELE_POWER);
+            else if(entity.getEntityType() == EntityType.RANGED_UNIT)
+                result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + RANGE_POWER);
+            else if(entity.getEntityType() == EntityType.TURRET)
+                result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + TURRET_POWER);
+        }
+
+        return result;
+    }
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
 
     public void activate(PlayerView playerView, ArrayList<Entity> warlordEntities, HashSet<Integer> aliveEnemies,
                          HashMap<Integer, Integer> enemyPositions, ArrayList<Entity> buildings, int[][] filledCells,
-                         HashMap<Integer, Entity> entityById){
+                         HashMap<Integer, Entity> entityById, ArrayList<Entity> enemyEntities){
         this.playerView = playerView;
         this.entities = warlordEntities;
         this.aliveEnemies = aliveEnemies;
@@ -112,6 +151,15 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         this.buildings = buildings;
         this.filledCells = filledCells;
         this.entityById = entityById;
+        this.enemyEntities = enemyEntities;
+
+        this.playersPower = getPlayersPower();
+        for(var player : playerView.getPlayers()) {
+            System.out.println("PLAYER: " + player.getId());
+            System.out.println("RESOURCE: " + player.getResource());
+            System.out.println("POWER: " + playersPower.get(player.getId()));
+            System.out.println();
+        }
 
         result = new HashMap<>();
 
@@ -127,6 +175,11 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                 distance = dis;
             }
         }
+
+        if(nearestEnemy != null)
+            redAlert = true;
+        else
+            redAlert = false;
 
         for(var entity : entities){
             var properties = playerView.getEntityProperties().get(entity.getEntityType());

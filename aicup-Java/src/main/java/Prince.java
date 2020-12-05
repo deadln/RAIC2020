@@ -12,6 +12,7 @@ public class Prince{//Управляет только строителями
     ArrayList<Entity> entities;
     ArrayList<Entity> buildings;
     HashMap<Integer, EntityAction> result;
+    boolean redAlert;
 
     int buildersCount;
     int meleeCount;
@@ -44,7 +45,8 @@ public class Prince{//Управляет только строителями
         for(var entity : buildings)
         {
             var properties = playerView.getEntityProperties().get(entity.getEntityType());
-            sum += properties.getPopulationProvide();
+            if(entity.getHealth() == properties.getMaxHealth()) // Учёт только построенных домов
+                sum += properties.getPopulationProvide();
         }
         return sum;
     }
@@ -56,7 +58,7 @@ public class Prince{//Управляет только строителями
     }
 
     Vec2Int getPlaceForHouse(){ // Найти место для дома
-        for(int d = 0; d < playerView.getMapSize(); d++){
+        for(int d = 1; d < playerView.getMapSize(); d++){//i % 5 == 1 && (d - i) % 5 == 1 &&
             for(int i = 0; i <= d; i++){
                 if(isBuildPossible(i, d - i, 3))
                     return new Vec2Int(i, d - i);
@@ -242,7 +244,32 @@ public class Prince{//Управляет только строителями
             return playerView.getMapSize() - 1;
     }
 
-    //boolean isEnemyInRange()
+    Vec2Int goToNearestResource(){
+        Entity entity = null;
+        for(int d = 0; d < playerView.getMapSize(); d++){
+            for(int i = 0; i < d / 2 + 1; i++){
+                entity = entityById.get(filledCells[i][d - i]);
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                    return new Vec2Int(i, d - i);
+                entity = entityById.get(filledCells[d - i][i]);
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                    return new Vec2Int(d - i, i);
+            }
+        }
+
+        for(int d = playerView.getMapSize() - 1; d >= 0; d--){
+            for(int i = 0; i < d / 2 + 1; i++){
+                entity = entityById.get(filledCells[i][d - i]);
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                    return new Vec2Int(i, d - i);
+                entity = entityById.get(filledCells[d - i][i]);
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                    return new Vec2Int(d - i, i);
+            }
+        }
+
+        return new Vec2Int(0,0);
+    }
 
     public HashMap<Integer, EntityAction> getResult() {
         return result;
@@ -252,7 +279,7 @@ public class Prince{//Управляет только строителями
 
     public void activate(PlayerView playerView, Player player, int[][] filledCells, HashMap<Integer, Entity> entityById,
                          ArrayList<Entity> princeEntities, ArrayList<Entity> buildings, int buildersCount, int meleeCount,
-                         int rangeCount, Entity builderChief, HashSet<Integer> maintenanceIds){
+                         int rangeCount, Entity builderChief, HashSet<Integer> maintenanceIds, boolean redAlert){
         this.playerView = playerView;
         this.me = player;
         this.filledCells = filledCells;
@@ -263,6 +290,7 @@ public class Prince{//Управляет только строителями
         this.meleeCount = meleeCount;
         this.rangeCount = rangeCount;
         this.builderChief = builderChief;
+        this.redAlert = redAlert;
 
         var provision = getProvisionSumm(playerView); // Текущая провизия
 
@@ -313,18 +341,19 @@ public class Prince{//Управляет только строителями
                         }
                     }
             }
-
+                // Постройка дома
                 if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING){
                     Vec2Int placeForHouse = getPlaceForHouse();
                     System.out.println("Gotta build the house at " + placeForHouse.getX() + " " + placeForHouse.getY());
+
                     move_action = new MoveAction(
                             new Vec2Int(placeForHouse.getX(),placeForHouse.getY() - 1),
-                            false,
+                            true,
                             false
                     );
                     build_action = new BuildAction(
                             EntityType.HOUSE,
-                            getPlaceForHouse()
+                            placeForHouse
                     );
                     attack_action = null;
 
@@ -351,13 +380,15 @@ public class Prince{//Управляет только строителями
                     move_action = getEscapeRoute(entity, menace);
                     attack_action = null;
                 }
-                else {
-                    if (entity.getId() % 2 == 0)
+                else { // Действия шахтёров
+                    /*if (entity.getId() % 2 == 0)
                         move_action = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
-                                0), true, true);
+                                (int)(playerView.getMapSize() / 3.5)), true, true);
                     else
-                        move_action = new MoveAction(new Vec2Int(0, // Послать в другой конец карты
-                                playerView.getMapSize() - 1), true, true);
+                        move_action = new MoveAction(new Vec2Int((int)(playerView.getMapSize() / 3.5), // Послать в другой конец карты
+                                playerView.getMapSize() - 1), true, true);*/
+
+                    move_action = new MoveAction(goToNearestResource(), true, true);
 
                     attack_action = new AttackAction(
                             null,
@@ -383,7 +414,7 @@ public class Prince{//Управляет только строителями
                 }
             }
 
-            if (entity.getEntityType() == EntityType.RANGED_BASE) // Строительство ближников
+            if (entity.getEntityType() == EntityType.RANGED_BASE)//&& (me.getResource() > 50 || redAlert)) // Строительство ближников
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
@@ -395,7 +426,7 @@ public class Prince{//Управляет только строителями
                     );
             }
 
-            if (entity.getEntityType() == EntityType.MELEE_BASE) // Строительство ближников
+            if (entity.getEntityType() == EntityType.MELEE_BASE)// && (me.getResource() > 50 || redAlert)) // Строительство ближников
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
