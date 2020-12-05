@@ -180,7 +180,7 @@ public class Prince{//Управляет только строителями
         var provision = getProvisionSumm(playerView); // Текущая провизия
 
         if(me.getResource() >= 150){
-            BUILDERS_RATIO = 0.35;
+            BUILDERS_RATIO = 0.4;
         }
         else{
             BUILDERS_RATIO = 0.5;
@@ -229,6 +229,7 @@ public class Prince{//Управляет только строителями
 
                 if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= 10){
                     Vec2Int placeForHouse = getPlaceForHouse();
+                    System.out.println("Gotta build the house at " + placeForHouse.getX() + " " + placeForHouse.getY());
                     move_action = new MoveAction(
                             new Vec2Int(placeForHouse.getX(),placeForHouse.getY() - 1),
                             false,

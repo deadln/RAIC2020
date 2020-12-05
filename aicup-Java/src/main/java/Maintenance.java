@@ -1,9 +1,6 @@
 import model.*;
 
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
+import java.util.*;
 
 public class Maintenance {
     volatile int active = 0; // Статус активности. 0 - не активен. 1 - активен. 2 - завершил работу
@@ -42,19 +39,31 @@ public class Maintenance {
         return active;
     }
 
-    Vec2Int getFarthestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points){
+    double getDistance(Vec2Int a, Vec2Int b){ // Расстояние между точками
+        return Math.hypot(Math.abs(a.getX() - b.getX()), Math.abs(a.getY() - b.getY()));
+    }
+
+    Vec2Int getFarthestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points){ // Самая дальняя точка
         double distance = (double) playerView.getMapSize(), dis;
         if(points.size() == 0)
             return new Vec2Int(0,0);
         Vec2Int result = points.get(0);
+        int far_y = playerView.getMapSize();
         for (var point : points) {
             dis = Math.hypot(Math.abs(entityPosition.getX() - point.getX()), Math.abs(entityPosition.getY() - point.getY()));
-            if(dis > distance && filledCells[point.getX()][point.getY()] == 0){
+            if(filledCells[point.getX()][point.getY()] == 0 && (point.getY() > far_y || dis > distance)){
+                far_y = point.getY();
                 distance = dis;
                 result = point;
             }
         }
         return result;
+    }
+
+    Vec2Int getAnyPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points){ // Любая точка
+        if(points.size() == 0)
+            return new Vec2Int(0,0);
+        return points.get((int) (Math.random() * points.size()));
     }
 
     //Список всех свободных соседних с сущностью клеток
@@ -92,6 +101,7 @@ public class Maintenance {
         return result;
     }
 
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
@@ -110,26 +120,17 @@ public class Maintenance {
             }
         });
 
+        Entity target = null;
+        double distance = playerView.getMapSize();
         for(var building : buildings){
             var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
-            if(building.getHealth() < propertiesBuilding.getMaxHealth()){
-                for(var entity : maintenance){
-                    result.put(
-                            entity.getId(),
-                            new EntityAction(
-                                    new MoveAction(
-                                            getFarthestPoint(entity.getPosition(),getSides(building)),
-                                            true,
-                                            true
-                                    ),
-                                    null,
-                                    null,
-                                    new RepairAction(
-                                            building.getId()
-                                    )
-                            )
-                    );
-                }
+            double dis = playerView.getMapSize() + 10;
+            if(maintenance.size() > 0)
+                dis = getDistance(maintenance.get(0).getPosition(), building.getPosition());
+            if(building.getHealth() < propertiesBuilding.getMaxHealth() && dis < distance){
+                target = building;
+                distance = dis;
+
                 /*//System.out.println("Gotta repair the " + building.getEntityType());
                 move_action = new MoveAction(
                         getNearestPoint(entity.getPosition(),getSides(building)),
@@ -139,9 +140,29 @@ public class Maintenance {
                 repair_action = new RepairAction(
                         building.getId()
                 );*/
-                break;
             }
         }
+
+        if(target != null){
+            for(var entity : maintenance){
+                result.put(
+                        entity.getId(),
+                        new EntityAction(
+                                new MoveAction(
+                                        getFarthestPoint(entity.getPosition(),getSides(target)),
+                                        true,
+                                        true
+                                ),
+                                null,
+                                null,
+                                new RepairAction(
+                                        target.getId()
+                                )
+                        )
+                );
+            }
+        }
+
         if(result.size() == 0 && playerView.getCurrentTick() < TIME_TO_FARM){
             for(var entity : maintenance){
                 var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
