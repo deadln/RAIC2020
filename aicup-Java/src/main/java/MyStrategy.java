@@ -100,6 +100,7 @@ public class MyStrategy {
         //HashSet<Pair> filledCells = new HashSet<>(); // ПЕРЕРАБОТАТЬ
         int[][] filledCells = new int[playerView.getMapSize()][playerView.getMapSize()]; // Поле с Id сущностей, которые занимают клетки
 
+        int provision = getProvisionSumm(playerView);
 
         for(var entity: playerView.getEntities()){ // Проход по сущностям
             entityById.put(entity.getId(), entity);
@@ -128,6 +129,11 @@ public class MyStrategy {
                     //Сверху
                     if (entity.getPosition().getX() < playerView.getMapSize() / 2 && entity.getPosition().getY() > playerView.getMapSize() / 2) {
                         enemyPositions.put(2, entity.getPlayerId());
+                    }
+                    for(int i = 0; i < 3; i++){
+                        if(enemyPositions.get(i) == null){
+                            enemyPositions.put(i, -1);
+                        }
                     }
                 }
             }
@@ -181,7 +187,7 @@ public class MyStrategy {
 
         //Назначение рембригады
         int i = 0;
-        while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT && i < maintenanceCandidates.size()){
+        while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT + (provision - 30) / 15 && i < maintenanceCandidates.size()){
             maintenanceEntities.add(maintenanceCandidates.get(i));
             i++;
         }

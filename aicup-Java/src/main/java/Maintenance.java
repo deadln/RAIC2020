@@ -43,6 +43,23 @@ public class Maintenance {
         return Math.hypot(Math.abs(a.getX() - b.getX()), Math.abs(a.getY() - b.getY()));
     }
 
+    Vec2Int getNearestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points, int size){ // Самая дальняя точка
+        double distance = (double) playerView.getMapSize(), dis;
+        if(points.size() == 0)
+            return new Vec2Int(0,0);
+        Vec2Int result = getAnyPoint(points);
+        int far_y = playerView.getMapSize();
+        for (var point : points) {
+            dis = Math.hypot(Math.abs(entityPosition.getX() - point.getX()), Math.abs(entityPosition.getY() - point.getY()));
+            if(filledCells[point.getX()][point.getY()] == 0 && (point.getY() > far_y || dis < distance)){
+                far_y = point.getY();
+                distance = dis;
+                result = point;
+            }
+        }
+        return result;
+    }
+
     Vec2Int getFarthestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points, int size){ // Самая дальняя точка
         double distance = (double) playerView.getMapSize(), dis;
         if(points.size() == 0)
@@ -113,99 +130,78 @@ public class Maintenance {
         active = 1;
         result = new HashMap<>();
 
-        buildings.sort(new Comparator<Entity>() {
+        /*buildings.sort(new Comparator<Entity>() {
             @Override
             public int compare(Entity o1, Entity o2) {
                 return o1.getId() - o2.getId();
             }
-        });
+        });*/
 
-        Entity target = null;
-        double distance = playerView.getMapSize();
+        ArrayList<Entity> targets = new ArrayList<>();
         for(var building : buildings){
             var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
-            double dis = playerView.getMapSize() + 10;
-            if(maintenance.size() > 0)
-                dis = getDistance(maintenance.get(0).getPosition(), building.getPosition());
-            if(building.getHealth() < propertiesBuilding.getMaxHealth() && dis < distance){
-                target = building;
-                distance = dis;
 
-                /*//System.out.println("Gotta repair the " + building.getEntityType());
-                move_action = new MoveAction(
-                        getNearestPoint(entity.getPosition(),getSides(building)),
+            if(building.getHealth() < propertiesBuilding.getMaxHealth()){
+                targets.add(building);
+            }
+        }
+
+        Entity target = null;
+        double distance = playerView.getMapSize(), dis;
+
+        for(var entity : maintenance){ // Проход по ремонтникам
+            MoveAction moveAction = null;
+            RepairAction repairAction = null;
+            AttackAction attackAction = null;
+
+            target = null;
+            distance = playerView.getMapSize();
+            for(var building : targets){ // Поиск ближайшего здания к юниту
+                dis = getDistance(entity.getPosition(), building.getPosition());
+                if(dis < distance){
+                    distance = dis;
+                    target = building;
+                }
+            }
+            if(target != null){
+                var targetProperties = playerView.getEntityProperties().get(target.getEntityType());
+                var fp = getFarthestPoint(entity.getPosition(),getSides(target), targetProperties.getSize());
+                moveAction = new MoveAction(
+                        fp,
                         true,
                         true
                 );
-                repair_action = new RepairAction(
-                        building.getId()
-                );*/
-            }
-        }
-
-
-        if(target != null){
-            var targetProperties = playerView.getEntityProperties().get(target.getEntityType());
-            for(var entity : maintenance){
-                var fp = getFarthestPoint(entity.getPosition(),getSides(target), targetProperties.getSize());
-                System.out.println("Point to repari : " + fp.getX() + " " + fp.getY());
-
-                result.put(
-                        entity.getId(),
-                        new EntityAction(
-                                new MoveAction(
-                                        fp,
-                                        true,
-                                        true
-                                ),
-                                null,
-                                null,
-                                new RepairAction(
-                                        target.getId()
-                                )
-                        )
+                repairAction = new RepairAction(
+                        target.getId()
                 );
             }
-            System.out.println();
-        }
-
-        if(result.size() == 0 && playerView.getCurrentTick() < TIME_TO_FARM){
-            for(var entity : maintenance){
-                var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
-                result.put(
-                        entity.getId(),
-                        new EntityAction(
-                                new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
-                                        playerView.getMapSize() - 1), true, true),
-                                null,
-                                new AttackAction(
-                                        null,
-                                        new AutoAttack(
-                                                properties.getSightRange(),
-                                                new EntityType[] {EntityType.RESOURCE}
-                                        )
-                                ),
-                                null
-                                )
-                        );
-
+            else { // Если нечего ремонтировать
+                moveAction = new MoveAction(new Vec2Int(4, // Послать в другой конец карты
+                        4), true, true);
+                if(playerView.getCurrentTick() < TIME_TO_FARM){
+                    var properties = playerView.getEntityProperties().get(entity.getEntityType());
+                    moveAction = new MoveAction(new Vec2Int(playerView.getMapSize(), playerView.getMapSize()),
+                            true, true);
+                    attackAction = new AttackAction(
+                            null,
+                            new AutoAttack(
+                                    properties.getSightRange(),
+                                    new EntityType[] {EntityType.RESOURCE}
+                            )
+                    );
+                }
+                repairAction = null;
             }
-        }
-        else if(result.size() == 0){
-            for(var entity : maintenance){
-                var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
-                result.put(
-                        entity.getId(),
-                        new EntityAction(
-                                new MoveAction(new Vec2Int(4, // Послать в другой конец карты
-                                        4), true, true),
-                                null,
-                                null,
-                                null
-                        )
-                );
 
-            }
+            result.put(
+                    entity.getId(),
+                    new EntityAction(
+                            moveAction,
+                            null,
+                            attackAction,
+                            repairAction
+                    )
+            );
         }
 
         active = 2;

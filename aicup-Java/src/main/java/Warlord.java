@@ -278,8 +278,8 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                     )
             );
 
-            if(nearestEnemy != null && entity.getPosition().getX() < playerView.getMapSize() / 2 &&
-                    entity.getPosition().getY() < playerView.getMapSize() / 2){ //Признак "Враг у ворот"
+            if(nearestEnemy != null /*&& entity.getPosition().getX() < playerView.getMapSize() / 2 &&
+                    entity.getPosition().getY() < playerView.getMapSize() / 2*/){ //Признак "Враг у ворот"
                 System.out.println("RED ALERT");
                 moveAction = new MoveAction(
                         nearestEnemy.getPosition(),
@@ -316,8 +316,10 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
             //Перегруппировка
             var ourPositions = isFarAway(entity);
             if(ourPositions != null){
-                if(getDistance(ourPositions, entity.getPosition()) > 3){
+                if(getDistance(ourPositions, entity.getPosition()) > 2){
                     moveAction = new MoveAction(ourPositions, true, true);
+                    if(entity.getEntityType() == EntityType.RANGED_UNIT)
+                        attackAction = null;
 
                 }
             }

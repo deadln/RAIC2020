@@ -62,8 +62,8 @@ public class Prince{//Управляет только строителями
             for(int i = 0; i <= d; i++){
                 if(isBuildPossible(i, d - i, 3))
                     return new Vec2Int(i, d - i);
-                if(isBuildPossible(d - i, i, 3))
-                    return new Vec2Int(d - i, i);
+                /*if(isBuildPossible(d - i, i, 3))
+                    return new Vec2Int(d - i, i);*/
             }
         }
         return new Vec2Int(0,0);
