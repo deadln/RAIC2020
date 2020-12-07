@@ -63,7 +63,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
 
     Vec2Int getAttackPoint(int position, int targetId){
         //Поиск угла противника
-        Vec2Int corner;
+        Vec2Int corner = null;
         int mod_x = 0;
         int mod_y = 0;
         if (position == 0){ // Правый верхний угол
@@ -88,8 +88,8 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
             mod_y = playerView.getMapSize() - 1;
         }
 
-
-        corner = new Vec2Int(20,20);
+        if(corner == null)
+            corner = new Vec2Int(20,20);
 
         //Поиск ближайшего к углу юнита
         double distance = 9000000000.0, dis;
@@ -161,15 +161,41 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
             result.put(player.getId(), 0.0);
 
         for(var entity : list){
-            if(entity.getEntityType() == EntityType.MELEE_UNIT)
+            if(entity.getEntityType() == EntityType.MELEE_UNIT && (entity.getPlayerId() == playerView.getMyId() ||
+                    enemyAtBase(entity)))
                 result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + MEELE_POWER);
-            else if(entity.getEntityType() == EntityType.RANGED_UNIT)
+            else if(entity.getEntityType() == EntityType.RANGED_UNIT && (entity.getPlayerId() == playerView.getMyId() ||
+                    enemyAtBase(entity)))
                 result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + RANGE_POWER);
             else if(entity.getEntityType() == EntityType.TURRET && entity.getPlayerId() != playerView.getMyId())
                 result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + TURRET_POWER);
         }
 
         return result;
+    }
+
+    boolean enemyAtBase(Entity entity){
+        int RANGE_OF_BASE = 27;
+        int position = -1;
+        for(int i = 0; i < 3; i++){
+            if(enemyPositions.get(i) == entity.getPlayerId()){
+                position = i;
+                break;
+            }
+        }
+        if(position == 0 && getDistance(new Vec2Int(playerView.getMapSize(), playerView.getMapSize()),
+                entity.getPosition()) < RANGE_OF_BASE){
+            return true;
+        }
+        if(position == 1 && getDistance(new Vec2Int(playerView.getMapSize(), 0),
+                entity.getPosition()) < RANGE_OF_BASE){
+            return true;
+        }
+        if(position == 2 && getDistance(new Vec2Int(0, playerView.getMapSize()),
+                entity.getPosition()) < RANGE_OF_BASE){
+            return true;
+        }
+        return false;
     }
 
     Vec2Int isFarAway(Entity unit){
@@ -223,20 +249,23 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         this.enemyEntities = enemyEntities;
 
         this.playersPower = getPlayersPower();
-        for(var player : playerView.getPlayers()) {
+        /*for(var player : playerView.getPlayers()) {
             System.out.println("PLAYER: " + player.getId());
             System.out.println("RESOURCE: " + player.getResource());
             System.out.println("POWER: " + playersPower.get(player.getId()));
             System.out.println();
-        }
+        }*/
 
         result = new HashMap<>();
 
         //Обнаружение угрозы
         Entity nearestEnemy = null;
         double distance = playerView.getMapSize();
-        for(var building : buildings){ //Проход по зданиям
-            Entity enemy = getEnemyNearby(building, BASE_RED_ALERT_RADIUS);
+
+        for(var entity : entities){ //Проход по юнитам
+            if(entity.getPosition().getX() > 25 && entity.getPosition().getY() > 25)
+                continue;
+            Entity enemy = getEnemyNearby(entity, UNIT_RED_ALERT_RADIUS);
             if(enemy == null)
                 continue;
             double dis = getDistance(new Vec2Int(0,0), enemy.getPosition());
@@ -247,10 +276,8 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         }
 
         distance = playerView.getMapSize();
-        for(var entity : entities){ //Проход по юнитам
-            if(entity.getPosition().getX() > 25 && entity.getPosition().getY() > 25)
-                continue;
-            Entity enemy = getEnemyNearby(entity, UNIT_RED_ALERT_RADIUS);
+        for(var building : buildings){ //Проход по зданиям
+            Entity enemy = getEnemyNearby(building, BASE_RED_ALERT_RADIUS);
             if(enemy == null)
                 continue;
             double dis = getDistance(new Vec2Int(0,0), enemy.getPosition());
@@ -280,7 +307,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
 
             if(nearestEnemy != null /*&& entity.getPosition().getX() < playerView.getMapSize() / 2 &&
                     entity.getPosition().getY() < playerView.getMapSize() / 2*/){ //Признак "Враг у ворот"
-                System.out.println("RED ALERT");
+                //System.out.println("RED ALERT");
                 moveAction = new MoveAction(
                         nearestEnemy.getPosition(),
                         true,
@@ -308,8 +335,8 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                 }
                 else{ // Атака на противника
                     var attackPoint = getAttackPoint(attackPosition, target);
-                    System.out.println("TARGET: " + target);
-                    System.out.println("Nearest enemy: " + attackPoint.getX() + " " + attackPoint.getY());
+                    /*System.out.println("TARGET: " + target);
+                    System.out.println("Nearest enemy: " + attackPoint.getX() + " " + attackPoint.getY());*/
                     moveAction = new MoveAction(attackPoint, true, true);
                 }
             }

@@ -22,7 +22,7 @@ public class Prince{//Управляет только строителями
     HashMap<Integer, Entity> entityById;
 
     double BUILDERS_RATIO = 0.5;
-    double RANGED_RATIO = 0.5; //До TTF:  0.7 - 10851 , 0.5 - 10624
+    double RANGED_RATIO = 0.7; //До TTF:  0.7 - 10851 , 0.5 - 10624
     int TIME_TO_FARM = 250; // После TTF: 0.7 146745, 0.5 - 140859
     int INAPPROPRIATE_PROVISION_REMAINING = 9;
 
@@ -191,8 +191,8 @@ public class Prince{//Управляет только строителями
                 //}
             }
         }
-        if(nearestEnemy != null)
-            System.out.println("Found enemy at " + nearestEnemy.getPosition().getX() + " " + nearestEnemy.getPosition().getY());
+        //if(nearestEnemy != null)
+            //System.out.println("Found enemy at " + nearestEnemy.getPosition().getX() + " " + nearestEnemy.getPosition().getY());
         return nearestEnemy;
     }
 

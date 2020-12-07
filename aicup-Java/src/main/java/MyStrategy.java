@@ -1,6 +1,8 @@
 import com.sun.source.tree.SynchronizedTree;
 import model.*;
 
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
@@ -13,16 +15,23 @@ public class MyStrategy {
     Warlord warlord;
     Prince prince;
     Maintenance maintenance;
+    Engineers engineers;
 
     HashMap<Integer, Entity> entityById;
     HashMap<Integer, Integer> enemyPositions; // Словарь позиция-id
     HashSet<Integer> aliveEnemies; // id - статус
     int builderChiefId = -1; // Прораб. Строит и ремонтирует здания
+    int eastEngineerId = -1;
+    int northEngineerId = -1;
     Entity builderChief;
 
     //boolean[][] dfs_field; // TODO Определение карты с кучей ресов в центре
 
+    Entity eng_e;
+    Entity eng_n;
+
     int MAINTENANCE_MAX_COUNT = 3;
+    int MAINTENANCE_PER_BUILDER = 10;
 
     public MyStrategy() {
         //myExecutor = Executors.newCachedThreadPool();
@@ -31,6 +40,7 @@ public class MyStrategy {
         warlord = new Warlord();
         prince = new Prince();
         maintenance = new Maintenance();
+        engineers = new Engineers();
 
         entityById = new HashMap<>();
     }
@@ -85,6 +95,7 @@ public class MyStrategy {
         ArrayList<Entity> maintenanceCandidates = new ArrayList<>(); // Кандидаты в ремонтники
         ArrayList<Entity> buildings = new ArrayList<>();
         ArrayList<Entity> enemyEntities = new ArrayList<>();
+        ArrayList<Entity> turrets = new ArrayList<>();
 
 
         int buildersCount = 0; // Кол-во строителей
@@ -93,6 +104,11 @@ public class MyStrategy {
 
         Entity builderChiefCandidate = null; // Строитель домов
         boolean builderChiefAlive = false;
+        boolean eastEngineerAlive = false;
+        boolean northEngineerAlive = false;
+        eng_e = null;
+        eng_n = null;
+
 
         aliveEnemies = new HashSet<>();
 
@@ -146,6 +162,7 @@ public class MyStrategy {
             if(entity.getEntityType() == EntityType.TURRET){
                 warlordEntities.add(entity);
                 princeEntities.add(entity);
+                turrets.add(entity);
             }
             else if(entity.getEntityType() == EntityType.MELEE_UNIT || entity.getEntityType() == EntityType.RANGED_UNIT) { // Распределение управления над юнитами
                 warlordEntities.add(entity);
@@ -161,8 +178,16 @@ public class MyStrategy {
             //Подсчёт кол-ва юнитов
             if(entity.getEntityType() == EntityType.BUILDER_UNIT) {
                 buildersCount++;
-                if(entity.getId() == builderChiefId) // Проверка жив ли прораб
+                if (entity.getId() == builderChiefId) // Проверка жив ли прораб
                     builderChiefAlive = true;
+                if (entity.getId() == eastEngineerId){ // Проверка жив ли инженер справа{
+                    eastEngineerAlive = true;
+                    eng_e = entity;
+                }
+                if(entity.getId() == northEngineerId){ // Проверка жив ли инженер сверху
+                    northEngineerAlive = true;
+                    eng_n = entity;
+                }
                 if(!builderChiefAlive)
                     builderChiefCandidate = entity;
                 if(entity.getId() != builderChiefId){
@@ -187,11 +212,22 @@ public class MyStrategy {
 
         //Назначение рембригады
         int i = 0;
-        while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT + (provision - 30) / 15 && i < maintenanceCandidates.size()){
+        while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT + (provision - 30) / MAINTENANCE_PER_BUILDER &&
+                i < maintenanceCandidates.size()){
             maintenanceEntities.add(maintenanceCandidates.get(i));
             i++;
         }
         maintenance.setMaintenance(maintenanceEntities);
+        //Назначение инженеров
+        if(i < maintenanceCandidates.size() && !eastEngineerAlive){
+            engineers.setEastEngineer(maintenanceCandidates.get(i));
+            i++;
+        }
+        if(i < maintenanceCandidates.size() && !northEngineerAlive){
+            engineers.setNorthEngineer(maintenanceCandidates.get(i));
+            i++;
+        }
+
 
         //Определение
 
@@ -224,23 +260,33 @@ public class MyStrategy {
             }
         });
 
+        myExecutor.execute(new Runnable() {
+            public void run() {
+                engineers.setActive(1);
+                engineers.activate(playerView, entityById, filledCells, turrets);
+            }
+        });
 
-
-        while(warlord.getActive() != 2 || prince.getActive() != 2 || maintenance.getActive() != 2){;}
+        while(warlord.getActive() != 2 || prince.getActive() != 2 || maintenance.getActive() != 2 ||
+                engineers.getActive() != 2){;}
         warlord.setActive(0);
         prince.setActive(0);
         maintenance.setActive(0);
+        engineers.setActive(0);
 
 
         var result = new Action(new HashMap<>()); // Список действий
         result.getEntityActions().putAll(warlord.getResult());
         result.getEntityActions().putAll(prince.getResult());
         result.getEntityActions().putAll(maintenance.getResult());
+        result.getEntityActions().putAll(engineers.getResult());
+
 
         return result;
     }
     public void debugUpdate(PlayerView playerView, DebugInterface debugInterface) {
-        debugInterface.send(new DebugCommand.Clear());
+        if(eng_e != null)
+            debugInterface.send(new DebugCommand.Clear());
         debugInterface.getState();
     }
 
