@@ -31,7 +31,9 @@ public class MyStrategy {
     Entity eng_n;
 
     int MAINTENANCE_MAX_COUNT = 3;
+    int HOUSEBUILDERS_MAX_COUNT = 3;
     int MAINTENANCE_PER_BUILDER = 10;
+    int HOUSEBUILDER_PER_BUILDER = 20;
 
     public MyStrategy() {
         //myExecutor = Executors.newCachedThreadPool();
@@ -91,6 +93,7 @@ public class MyStrategy {
 
         ArrayList<Entity> princeEntities = new ArrayList<>(); // Сущности князя
         ArrayList<Entity> warlordEntities = new ArrayList<>(); // Сущности воина
+        ArrayList<Entity> housebuildEntities = new ArrayList<>();
         ArrayList<Entity> maintenanceEntities = new ArrayList<>(); // Ремонтники
         ArrayList<Entity> maintenanceCandidates = new ArrayList<>(); // Кандидаты в ремонтники
         ArrayList<Entity> buildings = new ArrayList<>();
@@ -102,7 +105,7 @@ public class MyStrategy {
         int meleeCount = 0; // Кол-во милишников
         int rangeCount = 0; // Кол-во ренжей
 
-        Entity builderChiefCandidate = null; // Строитель домов
+        Entity builderChiefCandidates = null; // Строитель домов
         boolean builderChiefAlive = false;
         boolean eastEngineerAlive = false;
         boolean northEngineerAlive = false;
@@ -178,8 +181,8 @@ public class MyStrategy {
             //Подсчёт кол-ва юнитов
             if(entity.getEntityType() == EntityType.BUILDER_UNIT) {
                 buildersCount++;
-                if (entity.getId() == builderChiefId) // Проверка жив ли прораб
-                    builderChiefAlive = true;
+                /*if (entity.getId() == builderChiefId) // Проверка жив ли прораб
+                    builderChiefAlive = true;*/
                 if (engineers.getEastEngineer() != null && entity.getId() == engineers.getEastEngineer().getId()){ // Проверка жив ли инженер справа{
                     eastEngineerAlive = true;
                     eng_e = entity;
@@ -188,11 +191,14 @@ public class MyStrategy {
                     northEngineerAlive = true;
                     eng_n = entity;
                 }
-                if(!builderChiefAlive)
-                    builderChiefCandidate = entity;
-                if(entity.getId() != builderChiefId && (engineers.getEastEngineer() == null ||
+                /*if(!builderChiefAlive)
+                    builderChiefCandidate = entity;*/
+                if(/*entity.getId() != builderChiefId &&*/ (engineers.getEastEngineer() == null ||
                         entity.getId() != engineers.getEastEngineer().getId()) &&
                         (engineers.getNorthEngineer() == null || entity.getId() != engineers.getNorthEngineer().getId())){
+                    if(prince.getHouseBuildersIds().contains(entity.getId())){
+                        housebuildEntities.add(entity);
+                    }
                     if(maintenance.getMaintenanceIds().contains(entity.getId()))
                         maintenanceEntities.add(entity);
                     else
@@ -207,18 +213,24 @@ public class MyStrategy {
 
         }
         //Назначение нового прораба
-        if(!builderChiefAlive && builderChiefCandidate != null) {
+        /*if(!builderChiefAlive && builderChiefCandidate != null) {
             builderChief = builderChiefCandidate;
             builderChiefId = builderChiefCandidate.getId();
-        }
+        }*/
 
         //Назначение рембригады
         int i = 0;
+        while(housebuildEntities.size() < HOUSEBUILDERS_MAX_COUNT + (provision - 30) / HOUSEBUILDER_PER_BUILDER &&
+                i < maintenanceCandidates.size()){
+            housebuildEntities.add(maintenanceCandidates.get(i));
+            i++;
+        }
         while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT + (provision - 30) / MAINTENANCE_PER_BUILDER &&
                 i < maintenanceCandidates.size()){
             maintenanceEntities.add(maintenanceCandidates.get(i));
             i++;
         }
+        prince.setHouseBuilders(housebuildEntities);
         maintenance.setMaintenance(maintenanceEntities);
         //Назначение инженеров
         if(i < maintenanceCandidates.size() && !eastEngineerAlive){

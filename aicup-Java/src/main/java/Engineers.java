@@ -19,7 +19,7 @@ public class Engineers {
     Player me;
     HashMap<Integer, EntityAction> result;
 
-    int TIME_TO_BUILD = 150;
+    int TIME_TO_BUILD = 200;
     int LINE_OF_DEFENCE = 26;
     int TURRET_MIN_RADIUS = 1;
     double MEELE_POWER = 1;
@@ -300,7 +300,8 @@ public class Engineers {
         else{
             Vec2Int placeForTurretEast = getPlaceForTurretEast(0, LINE_OF_DEFENCE);
             Vec2Int placeForWallEast = null;//getPlaceForWallEast();
-            if(placeForTurretEast != null && /*!turretNorthPriority*/ turretsEastCount <= turretsNorthCount) {
+            if(placeForTurretEast != null && /*!turretNorthPriority*/ turretsEastCount <= turretsNorthCount &&
+            me.getResource() >= 100) {
                 System.out.println("EAST: Gotta build the turret at " + placeForTurretEast.getX() + " " + placeForTurretEast.getY());
 
                 moveActionEast = new MoveAction(
@@ -339,7 +340,8 @@ public class Engineers {
 
             Vec2Int placeForTurretNorth = getPlaceForTurretNorth(0, LINE_OF_DEFENCE);
             Vec2Int placeForWallNorth = null;//getPlaceForWallNorth();
-            if(placeForTurretNorth != null && /*!turretEastPriority*/turretsEastCount >= turretsNorthCount) {
+            if(placeForTurretNorth != null && /*!turretEastPriority*/turretsEastCount >= turretsNorthCount &&
+                    me.getResource() >= 100) {
                 System.out.println("NORTH: Gotta build the turret at " + placeForTurretNorth.getX() + " " + placeForTurretNorth.getY());
 
                 moveActionNorth = new MoveAction(

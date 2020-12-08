@@ -178,7 +178,7 @@ public class Maintenance {
             else { // Если нечего ремонтировать
                 moveAction = new MoveAction(new Vec2Int(4, // Послать в другой конец карты
                         4), true, true);
-                if(playerView.getCurrentTick() < TIME_TO_FARM){
+                //if(playerView.getCurrentTick() < TIME_TO_FARM){
                     var properties = playerView.getEntityProperties().get(entity.getEntityType());
                     moveAction = new MoveAction(new Vec2Int(playerView.getMapSize(), playerView.getMapSize()),
                             true, true);
@@ -189,7 +189,7 @@ public class Maintenance {
                                     new EntityType[] {EntityType.RESOURCE}
                             )
                     );
-                }
+                //}
                 repairAction = null;
             }
 

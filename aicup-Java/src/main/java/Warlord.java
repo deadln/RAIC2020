@@ -35,7 +35,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
     double MEELE_POWER = 1;
     double RANGE_POWER = 1.1;
     double TURRET_POWER = 3.3;
-    double DIFFERENCE_TO_ATTACK = 5;
+    double DIFFERENCE_TO_ATTACK = 6;
 
 //3 (788 откр) (984 120302 узк) (827 94874 откр) (804 107413 откр)
     //5 (919 123840 укз) (681 87886 откр)

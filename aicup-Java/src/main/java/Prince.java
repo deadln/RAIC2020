@@ -1,6 +1,7 @@
 import model.*;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 
@@ -17,18 +18,40 @@ public class Prince{//Управляет только строителями
     int buildersCount;
     int meleeCount;
     int rangeCount;
-    Entity builderChief;
+    //Entity builderChief;
+    ArrayList<Entity> houseBuilders;
+    HashSet<Integer> houseBuildersIds;
     int[][] filledCells;
     HashMap<Integer, Entity> entityById;
 
     double BUILDERS_RATIO = 0.5;
-    double RANGED_RATIO = 0.7; //До TTF:  0.7 - 10851 , 0.5 - 10624
+    double RANGED_RATIO = 0.6; //До TTF:  0.7 - 10851 , 0.5 - 10624
     int TIME_TO_FARM = 250; // После TTF: 0.7 146745, 0.5 - 140859
     int INAPPROPRIATE_PROVISION_REMAINING = 10;
+    int RESOURCE_TO_BUILD = 50;
 
 
 
     public Prince() {
+        houseBuildersIds = new HashSet<>();
+    }
+
+    public void setHouseBuilders(ArrayList<Entity> houseBuilders) {
+        this.houseBuilders = houseBuilders;
+        this.houseBuilders.sort(new Comparator<Entity>() {
+            @Override
+            public int compare(Entity o1, Entity o2) {
+                return o1.getId() - o2.getId();
+            }
+        });
+        houseBuildersIds.clear();
+        for(int i = 0; i < houseBuilders.size(); i++){
+            houseBuildersIds.add(houseBuilders.get(i).getId());
+        }
+    } // log(2, 8) = 3
+
+    public HashSet<Integer> getHouseBuildersIds() {
+        return houseBuildersIds;
     }
 
     public void setActive(int active) {
@@ -45,7 +68,7 @@ public class Prince{//Управляет только строителями
         for(var entity : buildings)
         {
             var properties = playerView.getEntityProperties().get(entity.getEntityType());
-            if(entity.getHealth() == properties.getMaxHealth()) // Учёт только построенных домов
+            //if(entity.getHealth() == properties.getMaxHealth()) // Учёт только построенных домов
                 sum += properties.getPopulationProvide();
         }
         return sum;
@@ -67,6 +90,28 @@ public class Prince{//Управляет только строителями
             }
         }
         return new Vec2Int(0,0);
+    }
+
+    ArrayList<Vec2Int> getPlacesForHouses(){ // Найти место для домов
+        ArrayList<Vec2Int> res = new ArrayList<>();
+        for(int d = 1; d < playerView.getMapSize(); d++){//i % 5 == 1 && (d - i) % 5 == 1 &&
+            for(int i = 0; i <= d; i++){
+                if(isBuildPossible(i, d - i, 3)){
+                    res.add(new Vec2Int(i, d - i));
+                    for(int x = i; x < i + 3; x++){
+                        for(int y = d - i; y < d - i + 3; y++){
+                            filledCells[x][y] = -1;
+                        }
+                    }
+                    if(res.size() >= houseBuilders.size())
+                        return res;
+                }
+                    //return new Vec2Int(i, d - i);
+                /*if(isBuildPossible(d - i, i, 3))
+                    return new Vec2Int(d - i, i);*/
+            }
+        }
+        return res;
     }
 
     boolean isBuildPossible(int x, int y, int size){ // Возможно ли строительство здания
@@ -271,6 +316,21 @@ public class Prince{//Управляет только строителями
         return new Vec2Int(0,0);
     }
 
+    Entity getNearestRepairTarget(Entity entity, ArrayList<Entity> repairTargets){
+        if(repairTargets.size() == 0)
+            return null;
+        double distance = playerView.getMapSize(), dis;
+        Entity result = repairTargets.get(0);
+        for(var target : repairTargets){
+            dis = getDistance(entity.getPosition(), target.getPosition());
+            if(dis < distance){
+                distance = dis;
+                result = target;
+            }
+        }
+        return result;
+    }
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
@@ -289,21 +349,31 @@ public class Prince{//Управляет только строителями
         this.buildersCount = buildersCount;
         this.meleeCount = meleeCount;
         this.rangeCount = rangeCount;
-        this.builderChief = builderChief;
+        //this.builderChief = builderChief;
         this.redAlert = redAlert;
 
         var provision = getProvisionSumm(playerView); // Текущая провизия
 
-        if(me.getResource() >= 150){
+        if(me.getResource() >= 300){
             BUILDERS_RATIO = 0.4;
         }
         else{
             BUILDERS_RATIO = 0.5;
         }
 
-        /*if(playerView.getCurrentTick() < TIME_TO_FARM){
-            RANGED_RATIO = 0.5;
-        }*/
+        var placesForHouses = getPlacesForHouses();
+        int houseCounter = 0;
+
+        ArrayList<Entity> repairTargets = new ArrayList<>();
+        for(var building : buildings){
+            var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
+
+            if(building.getHealth() < propertiesBuilding.getMaxHealth() && (building.getEntityType() == EntityType.HOUSE ||
+                    building.getEntityType() == EntityType.BUILDER_BASE || building.getEntityType() == EntityType.RANGED_BASE ||
+                    building.getEntityType() == EntityType.MELEE_BASE)){
+                repairTargets.add(building);
+            }
+        }
 
         result = new HashMap<>(); // Результат
         var my_id = playerView.getMyId(); // Собственный Id
@@ -325,28 +395,12 @@ public class Prince{//Управляет только строителями
 
 
 
-            if(entity.getId() == builderChief.getId()) { // Если юнит - прораб
-                //Поиск здания для ремонта
-                if (playerView.getCurrentTick() < TIME_TO_FARM){
-                    for (var building : buildings) {
-                        var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
-                        if (building.getHealth() < propertiesBuilding.getMaxHealth()) {
-                            //System.out.println("Gotta repair the " + building.getEntityType());
-                            move_action = new MoveAction(
-                                    getNearestPoint(entity.getPosition(), getSides(building)),
-                                    true,
-                                    true
-                            );
-                            repair_action = new RepairAction(
-                                    building.getId()
-                            );
-                            break;
-                        }
-                    }
-                }
+            if(houseBuildersIds.contains(entity.getId())/*entity.getId() == builderChief.getId()*/) { // Если юнит - строитель домов
                 // Постройка дома
-                if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING){
-                    Vec2Int placeForHouse = getPlaceForHouse();
+                if(provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING &&
+                me.getResource() >= RESOURCE_TO_BUILD){
+                    Vec2Int placeForHouse = placesForHouses.get(houseCounter);
+                    houseCounter++;
                     System.out.println("Gotta build the house at " + placeForHouse.getX() + " " + placeForHouse.getY());
 
                     move_action = new MoveAction(
@@ -361,7 +415,35 @@ public class Prince{//Управляет только строителями
                     attack_action = null;
 
                 }
-                else if(repair_action == null && playerView.getCurrentTick() < TIME_TO_FARM){
+                //Поиск здания для ремонта
+                if (build_action == null){
+                    System.out.println("Gotta repair");
+                    /*for (var building : repairTargets) {
+                        var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
+                        if (building.getHealth() < propertiesBuilding.getMaxHealth() &&
+                                building.getEntityType() == EntityType.HOUSE || ) {
+                            //System.out.println("Gotta repair the " + building.getEntityType());*/
+                            Entity repairTarget = getNearestRepairTarget(entity, repairTargets);
+                            if(repairTarget != null){
+                                move_action = new MoveAction(
+                                        getNearestPoint(entity.getPosition(), getSides(repairTarget)),
+                                        true,
+                                        true
+                                );
+                                repair_action = new RepairAction(
+                                        repairTarget.getId()
+                                );
+                            }
+                            /*break;
+                        }
+                    }*/
+                    if(repair_action != null){
+                        System.out.println("Repair???");
+                    }
+                }
+
+                if(repair_action == null && build_action == null/* && playerView.getCurrentTick() < TIME_TO_FARM*/){
+                    System.out.println("Gotta mine");
                     move_action = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
                             playerView.getMapSize() - 1), true, true);
                     attack_action = new AttackAction(
@@ -371,10 +453,6 @@ public class Prince{//Управляет только строителями
                                     new EntityType[] {EntityType.RESOURCE}
                             )
                     );
-                }
-                else{
-                    move_action = new MoveAction(new Vec2Int(11, // Послать в другой конец карты
-                            11), true, true);
                 }
             }
             else if(!maintenanceIds.contains(entity.getId())){
@@ -391,10 +469,7 @@ public class Prince{//Управляет только строителями
                         move_action = new MoveAction(new Vec2Int((int)(playerView.getMapSize() / 3.5), // Послать в другой конец карты
                                 playerView.getMapSize() - 1), true, true);*/
                     var nearestResource = goToNearestResource();
-                    if(getDistance(entity.getPosition(), nearestResource) < 5)
-                        move_action = null;
-                    else
-                        move_action = new MoveAction(goToNearestResource(), true, true);
+                    move_action = new MoveAction(goToNearestResource(), true, true);
 
 
                     attack_action = new AttackAction(
@@ -460,7 +535,7 @@ public class Prince{//Управляет только строителями
                     )
             );
         }
-
+        System.out.println(result.size());
 
         active = 2;
 
