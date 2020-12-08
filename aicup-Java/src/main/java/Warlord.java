@@ -30,6 +30,8 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
     //Переменные
     int BASE_RED_ALERT_RADIUS = 15;
     int UNIT_RED_ALERT_RADIUS = 7;
+    int GROUP_DISTANCE = 2;
+    int TIME_TO_FARM = 250;
     double MEELE_POWER = 1;
     double RANGE_POWER = 1.1;
     double TURRET_POWER = 3.3;
@@ -214,7 +216,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         double distance = 9000000, dis;
         Vec2Int ourPositions = null;
         for(var entity : entities){
-            if(!isOurWarrior(entity))
+            if(!isOurWarrior(entity) || entity.getId() == unit.getId())
                 continue;
             dis = getDistance(unit.getPosition(), entity.getPosition());
             if(dis < distance){
@@ -332,6 +334,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                 }
                 if(target == -1){ // Скопление на точке сбора
                     moveAction = new MoveAction(new Vec2Int(16,16), true, false);
+                    attackAction = null;
                 }
                 else{ // Атака на противника
                     var attackPoint = getAttackPoint(attackPosition, target);
@@ -343,7 +346,12 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
             //Перегруппировка
             var ourPositions = isFarAway(entity);
             if(ourPositions != null){
-                if(getDistance(ourPositions, entity.getPosition()) > 2){
+                /*System.out.println("This is " + entity.getEntityType() + " at " + entity.getPosition().getX() + " " +
+                        entity.getPosition().getY() + ". The nearby allies at " + ourPositions.getX() + " " +
+                        ourPositions.getY());*/
+                if(getDistance(ourPositions, entity.getPosition()) > GROUP_DISTANCE){
+                    /*System.out.println("REGROUP " + entity.getEntityType() + " " + entity.getPosition().getX() + " " +
+                            entity.getPosition().getY());*/
                     moveAction = new MoveAction(ourPositions, true, true);
                     if(entity.getEntityType() == EntityType.RANGED_UNIT)
                         attackAction = null;

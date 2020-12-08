@@ -13,11 +13,18 @@ public class Engineers {
     HashMap<Integer, Entity> entityById;
     int[][] filledCells;
     ArrayList<Entity> turrets;
+    ArrayList<Entity> enemyEntities;
+    HashMap<Integer, Integer> enemyPositions;
+    HashMap<Integer, Double> playersPower;
+    Player me;
     HashMap<Integer, EntityAction> result;
 
-    int TIME_TO_FARM = 250;
+    int TIME_TO_BUILD = 150;
     int LINE_OF_DEFENCE = 26;
     int TURRET_MIN_RADIUS = 1;
+    double MEELE_POWER = 1;
+    double RANGE_POWER = 1.1;
+    double TURRET_POWER = 3.3;
 
     public Engineers() {
     }
@@ -44,6 +51,10 @@ public class Engineers {
 
     public void setActive(int active) {
         this.active = active;
+    }
+
+    double getDistance(Vec2Int a, Vec2Int b){ // Расстояние между точками
+        return Math.hypot(Math.abs(a.getX() - b.getX()), Math.abs(a.getY() - b.getY()));
     }
 
     Vec2Int goToNearestResource() {
@@ -152,15 +163,67 @@ public class Engineers {
         return null;
     }
 
+    HashMap<Integer, Double> getPlayersPower(){ // Оценка сил армий противников без турелей
+        HashMap<Integer, Double> result = new HashMap<>();
+        ArrayList<Entity> list = new ArrayList<>();
+        list.addAll(enemyEntities);
+
+        for(var player : playerView.getPlayers())
+            result.put(player.getId(), 0.0);
+
+        for(var entity : list){
+            if(entity.getPlayerId() == playerView.getMyId())
+                continue;
+            if(entity.getEntityType() == EntityType.MELEE_UNIT && (entity.getPlayerId() == playerView.getMyId() ||
+                    enemyAtBase(entity)))
+                result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + MEELE_POWER);
+            else if(entity.getEntityType() == EntityType.RANGED_UNIT && (entity.getPlayerId() == playerView.getMyId() ||
+                    enemyAtBase(entity)))
+                result.put(entity.getPlayerId(), result.get(entity.getPlayerId()) + RANGE_POWER);
+        }
+
+        return result;
+    }
+
+    boolean enemyAtBase(Entity entity){
+        int RANGE_OF_BASE = 27;
+        int position = -1;
+        for(int i = 0; i < 3; i++){
+            if(enemyPositions.get(i) == entity.getPlayerId()){
+                position = i;
+                break;
+            }
+        }
+        if(position == 0 && getDistance(new Vec2Int(playerView.getMapSize(), playerView.getMapSize()),
+                entity.getPosition()) < RANGE_OF_BASE){
+            return true;
+        }
+        if(position == 1 && getDistance(new Vec2Int(playerView.getMapSize(), 0),
+                entity.getPosition()) < RANGE_OF_BASE){
+            return true;
+        }
+        if(position == 2 && getDistance(new Vec2Int(0, playerView.getMapSize()),
+                entity.getPosition()) < RANGE_OF_BASE){
+            return true;
+        }
+        return false;
+    }
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
 
-    public void activate(PlayerView playerView, HashMap<Integer, Entity> entityById, int[][] filledCells, ArrayList<Entity> turrets){
+    public void activate(PlayerView playerView, Player me, HashMap<Integer, Entity> entityById, int[][] filledCells,
+                         ArrayList<Entity> turrets, ArrayList<Entity> enemyEntities,
+                         HashMap<Integer, Integer> enemyPositions){
         this.playerView = playerView;
+        this.me = me;
         this.entityById = entityById;
         this.filledCells = filledCells;
         this.turrets = turrets;
+        this.enemyEntities = enemyEntities;
+        this.enemyPositions = enemyPositions;
+        this.playersPower = getPlayersPower();
         this.result = new HashMap<>();
 
         MoveAction moveActionEast = null;
@@ -179,6 +242,25 @@ public class Engineers {
             return;
         }
 
+        //Определение приоритета строительства
+        /*boolean turretEastPriority = false;
+        boolean turretNorthPriority = false;
+        int eastPlayerId = enemyPositions.get(1);
+        int northPlayerId = enemyPositions.get(2);*/
+
+        /*for(var player : playerView.getPlayers()){
+            if(enemyPositions.get(player.getId()) == 1){
+                eastPlayerId = player.getId();
+            }
+            if(enemyPositions.get(player.getId()) == 2){
+                northPlayerId = player.getId();
+            }
+        }*/
+        /*if(eastPlayerId != -1 && playersPower.get(eastPlayerId) > playersPower.get(northPlayerId))
+            turretEastPriority = true;
+        else if(northPlayerId != -1 && playersPower.get(northPlayerId) > playersPower.get(eastPlayerId))
+            turretNorthPriority = true;*/
+
         //Подсчёт кол-ва турелей
         int turretsEastCount = 0;
         int turretsNorthCount = 0;
@@ -195,13 +277,15 @@ public class Engineers {
         if(eastEngineer != null)
         {
             System.out.println("EAST: " + eastEngineer.getPosition().getX() + " " + eastEngineer.getPosition().getY());
+            System.out.println("ID: " + eastEngineer.getId());
         }
         if(northEngineer != null)
         {
             System.out.println("NORTH: " + northEngineer.getPosition().getX() + " " + northEngineer.getPosition().getY());
+            System.out.println("ID: " + northEngineer.getId());
         }
 
-        if(playerView.getCurrentTick() < TIME_TO_FARM){
+        if(playerView.getCurrentTick() < TIME_TO_BUILD || me.getResource() < 100){
             var properties = playerView.getEntityProperties().get(eastEngineer.getEntityType()); // Свойства
             moveActionEast = moveActionNorth = new MoveAction(goToNearestResource(), true, true);
 
@@ -216,7 +300,7 @@ public class Engineers {
         else{
             Vec2Int placeForTurretEast = getPlaceForTurretEast(0, LINE_OF_DEFENCE);
             Vec2Int placeForWallEast = null;//getPlaceForWallEast();
-            if(placeForTurretEast != null && turretsEastCount <= turretsNorthCount) {
+            if(placeForTurretEast != null && /*!turretNorthPriority*/ turretsEastCount <= turretsNorthCount) {
                 System.out.println("EAST: Gotta build the turret at " + placeForTurretEast.getX() + " " + placeForTurretEast.getY());
 
                 moveActionEast = new MoveAction(
@@ -255,7 +339,7 @@ public class Engineers {
 
             Vec2Int placeForTurretNorth = getPlaceForTurretNorth(0, LINE_OF_DEFENCE);
             Vec2Int placeForWallNorth = null;//getPlaceForWallNorth();
-            if(placeForTurretNorth != null && turretsEastCount >= turretsNorthCount) {
+            if(placeForTurretNorth != null && /*!turretEastPriority*/turretsEastCount >= turretsNorthCount) {
                 System.out.println("NORTH: Gotta build the turret at " + placeForTurretNorth.getX() + " " + placeForTurretNorth.getY());
 
                 moveActionNorth = new MoveAction(

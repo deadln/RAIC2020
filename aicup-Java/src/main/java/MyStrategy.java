@@ -180,17 +180,19 @@ public class MyStrategy {
                 buildersCount++;
                 if (entity.getId() == builderChiefId) // Проверка жив ли прораб
                     builderChiefAlive = true;
-                if (entity.getId() == eastEngineerId){ // Проверка жив ли инженер справа{
+                if (engineers.getEastEngineer() != null && entity.getId() == engineers.getEastEngineer().getId()){ // Проверка жив ли инженер справа{
                     eastEngineerAlive = true;
                     eng_e = entity;
                 }
-                if(entity.getId() == northEngineerId){ // Проверка жив ли инженер сверху
+                if(engineers.getNorthEngineer() != null && entity.getId() == engineers.getNorthEngineer().getId()){ // Проверка жив ли инженер сверху
                     northEngineerAlive = true;
                     eng_n = entity;
                 }
                 if(!builderChiefAlive)
                     builderChiefCandidate = entity;
-                if(entity.getId() != builderChiefId){
+                if(entity.getId() != builderChiefId && (engineers.getEastEngineer() == null ||
+                        entity.getId() != engineers.getEastEngineer().getId()) &&
+                        (engineers.getNorthEngineer() == null || entity.getId() != engineers.getNorthEngineer().getId())){
                     if(maintenance.getMaintenanceIds().contains(entity.getId()))
                         maintenanceEntities.add(entity);
                     else
@@ -263,7 +265,7 @@ public class MyStrategy {
         myExecutor.execute(new Runnable() {
             public void run() {
                 engineers.setActive(1);
-                engineers.activate(playerView, entityById, filledCells, turrets);
+                engineers.activate(playerView, me, entityById, filledCells, turrets, enemyEntities, enemyPositions);
             }
         });
 
@@ -285,8 +287,7 @@ public class MyStrategy {
         return result;
     }
     public void debugUpdate(PlayerView playerView, DebugInterface debugInterface) {
-        if(eng_e != null)
-            debugInterface.send(new DebugCommand.Clear());
+        debugInterface.send(new DebugCommand.Clear());
         debugInterface.getState();
     }
 

@@ -24,7 +24,7 @@ public class Prince{//Управляет только строителями
     double BUILDERS_RATIO = 0.5;
     double RANGED_RATIO = 0.7; //До TTF:  0.7 - 10851 , 0.5 - 10624
     int TIME_TO_FARM = 250; // После TTF: 0.7 146745, 0.5 - 140859
-    int INAPPROPRIATE_PROVISION_REMAINING = 9;
+    int INAPPROPRIATE_PROVISION_REMAINING = 10;
 
 
 
@@ -308,6 +308,7 @@ public class Prince{//Управляет только строителями
         result = new HashMap<>(); // Результат
         var my_id = playerView.getMyId(); // Собственный Id
 
+
         for(var entity : entities){
 
             var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
@@ -321,6 +322,8 @@ public class Prince{//Управляет только строителями
 
             if(entity.getEntityType() == EntityType.TURRET) // Пропуск управления турелью
                 continue;
+
+
 
             if(entity.getId() == builderChief.getId()) { // Если юнит - прораб
                 //Поиск здания для ремонта
@@ -340,7 +343,7 @@ public class Prince{//Управляет только строителями
                             break;
                         }
                     }
-            }
+                }
                 // Постройка дома
                 if(repair_action == null && provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING){
                     Vec2Int placeForHouse = getPlaceForHouse();
@@ -387,8 +390,12 @@ public class Prince{//Управляет только строителями
                     else
                         move_action = new MoveAction(new Vec2Int((int)(playerView.getMapSize() / 3.5), // Послать в другой конец карты
                                 playerView.getMapSize() - 1), true, true);*/
+                    var nearestResource = goToNearestResource();
+                    if(getDistance(entity.getPosition(), nearestResource) < 5)
+                        move_action = null;
+                    else
+                        move_action = new MoveAction(goToNearestResource(), true, true);
 
-                    move_action = new MoveAction(goToNearestResource(), true, true);
 
                     attack_action = new AttackAction(
                             null,
@@ -414,7 +421,8 @@ public class Prince{//Управляет только строителями
                 }
             }
 
-            if (entity.getEntityType() == EntityType.RANGED_BASE)//&& (me.getResource() > 50 || redAlert)) // Строительство ближников
+            if (entity.getEntityType() == EntityType.RANGED_BASE/* && (playerView.getCurrentTick() > TIME_TO_FARM ||
+                    redAlert)*/)//&& (me.getResource() > 50 || redAlert)) // Строительство ближников
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
@@ -426,7 +434,8 @@ public class Prince{//Управляет только строителями
                     );
             }
 
-            if (entity.getEntityType() == EntityType.MELEE_BASE)// && (me.getResource() > 50 || redAlert)) // Строительство ближников
+            if (entity.getEntityType() == EntityType.MELEE_BASE/* && (playerView.getCurrentTick() > TIME_TO_FARM ||
+                    redAlert)*/)// && (me.getResource() > 50 || redAlert)) // Строительство ближников
             {
                 build_properties = properties.getBuild();
                 var entity_type = build_properties.getOptions()[0]; // Получить тип производимого юнита
@@ -451,6 +460,8 @@ public class Prince{//Управляет только строителями
                     )
             );
         }
+
+
         active = 2;
 
 
