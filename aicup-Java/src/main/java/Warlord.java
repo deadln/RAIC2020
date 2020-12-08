@@ -322,6 +322,8 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                 int target = -1;
                 int attackPosition = -1;
                 for (int position = 0; position < 3; position++) {
+                    if(enemyPositions.get(position) == null)
+                        continue;
                     int enemyId = enemyPositions.get(position);
                     if (aliveEnemies.contains(enemyId)) { // Если враг жив
                         pow = playersPower.get(enemyId);
