@@ -20,7 +20,7 @@ public class Engineers {
     HashMap<Integer, EntityAction> result;
 
     int TIME_TO_BUILD = 200;
-    int LINE_OF_DEFENCE = 26;
+    int LINE_OF_DEFENCE = 28;
     int TURRET_MIN_RADIUS = 1;
     double MEELE_POWER = 1;
     double RANGE_POWER = 1.1;

@@ -27,8 +27,9 @@ public class Prince{//Управляет только строителями
     double BUILDERS_RATIO = 0.5;
     double RANGED_RATIO = 0.6; //До TTF:  0.7 - 10851 , 0.5 - 10624
     int TIME_TO_FARM = 250; // После TTF: 0.7 146745, 0.5 - 140859
-    int INAPPROPRIATE_PROVISION_REMAINING = 10;
+    int INAPPROPRIATE_PROVISION_REMAINING = 20;
     int RESOURCE_TO_BUILD = 50;
+    int BASE_BOUNDS = 25;
 
 
 
@@ -94,6 +95,52 @@ public class Prince{//Управляет только строителями
 
     ArrayList<Vec2Int> getPlacesForHouses(){ // Найти место для домов
         ArrayList<Vec2Int> res = new ArrayList<>();
+        for(int x = 0; x < BASE_BOUNDS; x++){//i % 5 == 1 && (d - i) % 5 == 1 &&
+            for(int y = 0; y < BASE_BOUNDS; y++){
+                if(isBuildPossible(x, y, 3)){
+                    res.add(new Vec2Int(x, y));
+                    for(int i = x; i < x + 3; i++){
+                        for(int j = y; j < y + 3; j++){
+                            filledCells[i][j] = -1;
+                        }
+                    }
+                    if(res.size() >= houseBuilders.size())
+                        return res;
+                }
+                if(isBuildPossible(y, x, 3)){
+                    res.add(new Vec2Int(y, x));
+                    for(int i = y; i < y + 3; i++){
+                        for(int j = x; j < x + 3; j++){
+                            filledCells[i][j] = -1;
+                        }
+                    }
+                    if(res.size() >= houseBuilders.size())
+                        return res;
+                }
+                //return new Vec2Int(i, d - i);
+                /*if(isBuildPossible(d - i, i, 3))
+                    return new Vec2Int(d - i, i);*/
+            }
+        }
+        //Сортировка в порядке близости друг к другу
+        double distance, dis;
+        for(int i = 0; i < res.size() - 1; i++){
+            distance = getDistance(res.get(i), res.get(i + 1));
+            for(int j = i + 1; j < res.size(); j++){
+                dis = getDistance(res.get(i), res.get(j));
+                if(dis < distance){
+                    Vec2Int buff = res.get(i + 1);
+                    res.set(i + 1, res.get(j));
+                    res.set(j, buff);
+                }
+            }
+        }
+
+        return res;
+    }
+
+    /*ArrayList<Vec2Int> getPlacesForHouses(){ // Найти место для домов
+        ArrayList<Vec2Int> res = new ArrayList<>();
         for(int d = 1; d < playerView.getMapSize(); d++){//i % 5 == 1 && (d - i) % 5 == 1 &&
             for(int i = 0; i <= d; i++){
                 if(isBuildPossible(i, d - i, 3)){
@@ -109,10 +156,10 @@ public class Prince{//Управляет только строителями
                     //return new Vec2Int(i, d - i);
                 /*if(isBuildPossible(d - i, i, 3))
                     return new Vec2Int(d - i, i);*/
-            }
-        }
-        return res;
-    }
+//            }
+//        }
+//        return res;
+//    }*/
 
     boolean isBuildPossible(int x, int y, int size){ // Возможно ли строительство здания
         //Проверка на возможность подойти к месту строительства
@@ -160,17 +207,29 @@ public class Prince{//Управляет только строителями
 
         if(entity.getPosition().getX() < playerView.getMapSize() - 1){ // Правая сторона
             for(int y = entity.getPosition().getY(); y < entity.getPosition().getY() + properties.getSize(); y++){
-                if(filledCells[entity.getPosition().getX() + 1][y] == 0)
-                    result.add(new Vec2Int(entity.getPosition().getX() + 1, y));
+                if(filledCells[entity.getPosition().getX() + properties.getSize()][y] == 0)
+                    result.add(new Vec2Int(entity.getPosition().getX() + properties.getSize(), y));
             }
         }
 
         if(entity.getPosition().getY() < playerView.getMapSize() - 1){ // Верхняя сторона
             for(int x = entity.getPosition().getX(); x < entity.getPosition().getX() + properties.getSize(); x++){
-                if(filledCells[x][entity.getPosition().getY() + 1] == 0)
-                    result.add(new Vec2Int(x, entity.getPosition().getY() + 1));
+                if(filledCells[x][entity.getPosition().getY() + properties.getSize()] == 0)
+                    result.add(new Vec2Int(x, entity.getPosition().getY() + properties.getSize()));
             }
         }
+
+        /*result.sort(new Comparator<Vec2Int>() {
+            @Override
+            public int compare(Vec2Int o1, Vec2Int o2) {
+                if(o1.getY() > o2.getY() || o1.getX() > o2.getX())
+                    return -1;
+                if(o1.getY() < o2.getY() || o1.getX() < o2.getX())
+                    return 1;
+                return 0;
+            }
+        });*/
+
         return result;
     }
 
@@ -179,7 +238,7 @@ public class Prince{//Управляет только строителями
     Vec2Int getNearestPoint(Vec2Int entityPosition,ArrayList<Vec2Int> points){
         double distance = (double) playerView.getMapSize(), dis;
         if(points.size() == 0)
-            return new Vec2Int(0,0);
+            return new Vec2Int(15,15);
         Vec2Int result = points.get(0);
         for (var point : points) {
             dis = Math.hypot(Math.abs(entityPosition.getX() - point.getX()), Math.abs(entityPosition.getY() - point.getY()));
@@ -192,10 +251,27 @@ public class Prince{//Управляет только строителями
     }
 
     Vec2Int getUnitBuildPosition(Entity entity, int size){
-        if (playerView.getCurrentTick() % 2 == 0){
+        var sides = getSides(entity);
+        if(sides.size() == 0)
+            return new Vec2Int(0,0);
+        var best_place = sides.get(0);
+        var coord = Math.max(best_place.getX(),best_place.getY());
+        for(var place : sides){
+            if(place.getX() * place.getX() + place.getY()*place.getY() > best_place.getX()*best_place.getX() +
+                    best_place.getY()*best_place.getY()){
+                best_place = place;
+                coord = Math.max(best_place.getX(),best_place.getY());
+            }
+        }
+        for(Vec2Int side : sides){
+            System.out.println(side.getX() + " " + side.getY());
+        }
+        return best_place;
+
+        /*if (playerView.getCurrentTick() % 2 == 0){
             return new Vec2Int(
-                    entity.getPosition().getX() + size,
-                    entity.getPosition().getY() + size - 1
+                    entity.getPosition().getX() + size - 1,
+                    entity.getPosition().getY() + size
             );
         }
         else{
@@ -203,7 +279,7 @@ public class Prince{//Управляет только строителями
                     entity.getPosition().getX() + size,
                     entity.getPosition().getY() + size - 2
             );
-        }
+        }*/
     }
 
     Entity getEnemyNearby(Entity entity){
@@ -294,10 +370,10 @@ public class Prince{//Управляет только строителями
         for(int d = 0; d < playerView.getMapSize(); d++){
             for(int i = 0; i < d / 2 + 1; i++){
                 entity = entityById.get(filledCells[i][d - i]);
-                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE && getSides(entity).size() != 0)
                     return new Vec2Int(i, d - i);
                 entity = entityById.get(filledCells[d - i][i]);
-                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE && getSides(entity).size() != 0)
                     return new Vec2Int(d - i, i);
             }
         }
@@ -305,15 +381,15 @@ public class Prince{//Управляет только строителями
         for(int d = playerView.getMapSize() - 1; d >= 0; d--){
             for(int i = 0; i < d / 2 + 1; i++){
                 entity = entityById.get(filledCells[i][d - i]);
-                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE && getSides(entity).size() != 0)
                     return new Vec2Int(i, d - i);
                 entity = entityById.get(filledCells[d - i][i]);
-                if(entity != null && entity.getEntityType() == EntityType.RESOURCE)
+                if(entity != null && entity.getEntityType() == EntityType.RESOURCE && getSides(entity).size() != 0)
                     return new Vec2Int(d - i, i);
             }
         }
 
-        return new Vec2Int(0,0);
+        return new Vec2Int(playerView.getMapSize(),playerView.getMapSize());
     }
 
     Entity getNearestRepairTarget(Entity entity, ArrayList<Entity> repairTargets){
@@ -355,7 +431,7 @@ public class Prince{//Управляет только строителями
         var provision = getProvisionSumm(playerView); // Текущая провизия
 
         if(me.getResource() >= 300){
-            BUILDERS_RATIO = 0.4;
+            BUILDERS_RATIO = 0.35;
         }
         else{
             BUILDERS_RATIO = 0.5;
@@ -398,7 +474,7 @@ public class Prince{//Управляет только строителями
             if(houseBuildersIds.contains(entity.getId())/*entity.getId() == builderChief.getId()*/) { // Если юнит - строитель домов
                 // Постройка дома
                 if(provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING &&
-                me.getResource() >= RESOURCE_TO_BUILD){
+                me.getResource() >= RESOURCE_TO_BUILD && houseCounter < placesForHouses.size()){
                     Vec2Int placeForHouse = placesForHouses.get(houseCounter);
                     houseCounter++;
                     System.out.println("Gotta build the house at " + placeForHouse.getX() + " " + placeForHouse.getY());
@@ -412,6 +488,12 @@ public class Prince{//Управляет только строителями
                             EntityType.HOUSE,
                             placeForHouse
                     );
+                    if(me.getResource() > 200){
+                        build_action = new BuildAction(
+                                EntityType.HOUSE,
+                                new Vec2Int(entity.getPosition().getX(), entity.getPosition().getY() + 1)
+                        );
+                    }
                     attack_action = null;
 
                 }
@@ -456,7 +538,7 @@ public class Prince{//Управляет только строителями
                 }
             }
             else if(!maintenanceIds.contains(entity.getId())){
-                var menace = getEnemyNearby(entity);
+                Entity menace = null;//getEnemyNearby(entity);
                 if(menace != null){ // Побег в случае угрозы поблизости
                     move_action = getEscapeRoute(entity, menace);
                     attack_action = null;
