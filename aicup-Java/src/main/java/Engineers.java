@@ -274,16 +274,7 @@ public class Engineers {
 
         }
 
-        if(eastEngineer != null)
-        {
-            System.out.println("EAST: " + eastEngineer.getPosition().getX() + " " + eastEngineer.getPosition().getY());
-            System.out.println("ID: " + eastEngineer.getId());
-        }
-        if(northEngineer != null)
-        {
-            System.out.println("NORTH: " + northEngineer.getPosition().getX() + " " + northEngineer.getPosition().getY());
-            System.out.println("ID: " + northEngineer.getId());
-        }
+
 
         if(playerView.getCurrentTick() < TIME_TO_BUILD || me.getResource() < 100){
             var properties = playerView.getEntityProperties().get(eastEngineer.getEntityType()); // Свойства
@@ -401,6 +392,7 @@ public class Engineers {
                 )
         );
 
+        System.out.println("Engineers is done");
         active = 2;
     }
 

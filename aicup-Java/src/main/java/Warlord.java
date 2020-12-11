@@ -234,6 +234,24 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         return false;
     }
 
+
+    boolean isEnemyInRange(Entity entity){
+        var properties = playerView.getEntityProperties().get(entity.getEntityType()); // Свойства
+        for(int x = Math.max(entity.getPosition().getX() - 5, 0); x < Math.min(entity.getPosition().getX() + 5, playerView.getMapSize() - 1);x++){
+            for(int y = Math.max(entity.getPosition().getY() - 5, 0); y < Math.min(entity.getPosition().getY() + 5, playerView.getMapSize() - 1);y++){
+                if(getDistance(new Vec2Int(x,y), entity.getPosition()) > 5)
+                    continue;
+                var ent = entityById.get(filledCells[x][y]);
+                if(ent == null)
+                    continue;
+                if(ent.getPlayerId() != null && ent.getPlayerId() != playerView.getMyId() && getDistance(entity.getPosition(),
+                        ent.getPosition()) <= 5)
+                    return true;
+            }
+        }
+        return false;
+    }
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
@@ -251,12 +269,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
         this.enemyEntities = enemyEntities;
 
         this.playersPower = getPlayersPower();
-        /*for(var player : playerView.getPlayers()) {
-            System.out.println("PLAYER: " + player.getId());
-            System.out.println("RESOURCE: " + player.getResource());
-            System.out.println("POWER: " + playersPower.get(player.getId()));
-            System.out.println();
-        }*/
+
 
         result = new HashMap<>();
 
@@ -336,7 +349,8 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                 }
                 if(target == -1){ // Скопление на точке сбора
                     moveAction = new MoveAction(new Vec2Int(16,16), true, false);
-                    attackAction = null;
+                    if(!isEnemyInRange(entity))
+                        attackAction = null;
                 }
                 else{ // Атака на противника
                     var attackPoint = getAttackPoint(attackPosition, target);
@@ -355,8 +369,10 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                     /*System.out.println("REGROUP " + entity.getEntityType() + " " + entity.getPosition().getX() + " " +
                             entity.getPosition().getY());*/
                     moveAction = new MoveAction(ourPositions, true, true);
-                    if(entity.getEntityType() == EntityType.RANGED_UNIT)
+                    if(!isEnemyInRange(entity))
                         attackAction = null;
+                    /*if(entity.getEntityType() == EntityType.RANGED_UNIT)
+                        attackAction = null;*/
 
                 }
             }
@@ -383,6 +399,7 @@ public class Warlord /*extends Thread*/ { // Управляет только б�
                     )
             );
         }
+        System.out.println("Warlord is done");
         active = 2;
     }
 }

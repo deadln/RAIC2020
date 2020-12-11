@@ -33,6 +33,8 @@ public class Runner {
                 outputStream.flush();
             } else if (message instanceof model.ServerMessage.Finish) {
                 myStrategy.getMyExecutor().shutdown();
+                System.out.println("TaskExecutor supposed to be shutdown now");
+                System.out.println();
                 break;
             } else if (message instanceof model.ServerMessage.DebugUpdate) {
                 model.ServerMessage.DebugUpdate debugUpdateMessage = (model.ServerMessage.DebugUpdate) message;
@@ -43,6 +45,8 @@ public class Runner {
                 throw new IOException("Unexpected server message");
             }
         }
+        System.out.println("There will be full shutdown now");
+        System.exit(0);
     }
 
     public static void main(String[] args) throws IOException {

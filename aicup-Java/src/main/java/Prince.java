@@ -23,6 +23,7 @@ public class Prince{//Управляет только строителями
     HashSet<Integer> houseBuildersIds;
     int[][] filledCells;
     HashMap<Integer, Entity> entityById;
+    HashMap<Integer, Integer> bases;
 
     double BUILDERS_RATIO = 0.5;
     double RANGED_RATIO = 0.6; //До TTF:  0.7 - 10851 , 0.5 - 10624
@@ -85,6 +86,18 @@ public class Prince{//Управляет только строителями
         for(int d = 1; d < playerView.getMapSize(); d++){//i % 5 == 1 && (d - i) % 5 == 1 &&
             for(int i = 0; i <= d; i++){
                 if(isBuildPossible(i, d - i, 3))
+                    return new Vec2Int(i, d - i);
+                /*if(isBuildPossible(d - i, i, 3))
+                    return new Vec2Int(d - i, i);*/
+            }
+        }
+        return new Vec2Int(0,0);
+    }
+
+    Vec2Int getPlaceForBase(){ // Найти место для базы
+        for(int d = 1; d < playerView.getMapSize(); d++){//i % 5 == 1 && (d - i) % 5 == 1 &&
+            for(int i = 0; i <= d; i++){
+                if(isBuildPossible(i, d - i, 5))
                     return new Vec2Int(i, d - i);
                 /*if(isBuildPossible(d - i, i, 3))
                     return new Vec2Int(d - i, i);*/
@@ -263,9 +276,8 @@ public class Prince{//Управляет только строителями
                 coord = Math.max(best_place.getX(),best_place.getY());
             }
         }
-        for(Vec2Int side : sides){
-            System.out.println(side.getX() + " " + side.getY());
-        }
+
+
         return best_place;
 
         /*if (playerView.getCurrentTick() % 2 == 0){
@@ -294,15 +306,13 @@ public class Prince{//Управляет только строителями
             for(int j = entity.getPosition().getY() + size + 6 ;j > entity.getPosition().getY() - 6 - 1; j--){
                 if(j < 0 || j >= playerView.getMapSize())
                     continue;
-                //if(i*i + j*j <= RED_ALERT_RADIUS*RED_ALERT_RADIUS){
-                    /*if(filledCells[i][j] != 0)
-                        System.out.println(filledCells[i][j]);*/
+
                 Entity enemy = entityById.get(filledCells[i][j]);
 
                 if(enemy == null || enemy.getPlayerId() == null || enemy.getPlayerId() == playerView.getMyId() ||
                         (enemy.getEntityType() != EntityType.RANGED_UNIT && enemy.getEntityType() != EntityType.MELEE_UNIT)){
-                    //System.out.println("Not enemy");
-                    continue;}
+                    continue;
+                }
                 double dis = getDistance(new Vec2Int(entity.getPosition().getX() + size - 1,
                         entity.getPosition().getY() + size - 1), enemy.getPosition());
                 if(enemy != null && dis < distance){
@@ -312,8 +322,7 @@ public class Prince{//Управляет только строителями
                 //}
             }
         }
-        //if(nearestEnemy != null)
-            //System.out.println("Found enemy at " + nearestEnemy.getPosition().getX() + " " + nearestEnemy.getPosition().getY());
+
         return nearestEnemy;
     }
 
@@ -417,7 +426,8 @@ public class Prince{//Управляет только строителями
         int ru_x = Math.min(playerView.getMapSize() - 1, building.getPosition().getX() + properties.getSize());
         int ru_y = Math.min(playerView.getMapSize() - 1, building.getPosition().getY() + properties.getSize());
 
-        while(res.size() < count || (ru_x - ld_x <= 30 || ru_y - ld_y <= 30)){
+        int steps = 0;
+        while(res.size() < count && steps < 30){
             Entity candidate = null;
             //Проход по нижней границе
             for(int x = ld_x; x <= ru_x; x++){
@@ -469,6 +479,7 @@ public class Prince{//Управляет только строителями
             if(ru_y < playerView.getMapSize() - 1)
                 ru_y++;
 
+            steps++;
         }
 
         while(res.size() > count){
@@ -485,6 +496,7 @@ public class Prince{//Управляет только строителями
         return res;
     }
 
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
@@ -493,7 +505,8 @@ public class Prince{//Управляет только строителями
 
     public void activate(PlayerView playerView, Player player, int[][] filledCells, HashMap<Integer, Entity> entityById,
                          ArrayList<Entity> princeEntities, ArrayList<Entity> buildings, int buildersCount, int meleeCount,
-                         int rangeCount, Entity builderChief, HashSet<Integer> maintenanceIds, boolean redAlert){
+                         int rangeCount, Entity builderChief, HashSet<Integer> maintenanceIds, boolean redAlert,
+                         HashMap<Integer, Integer> bases){
         this.playerView = playerView;
         this.me = player;
         this.filledCells = filledCells;
@@ -505,6 +518,7 @@ public class Prince{//Управляет только строителями
         this.rangeCount = rangeCount;
         //this.builderChief = builderChief;
         this.redAlert = redAlert;
+        this.bases = bases;
 
         var provision = getProvisionSumm(playerView); // Текущая провизия
 
@@ -515,6 +529,19 @@ public class Prince{//Управляет только строителями
             BUILDERS_RATIO = 0.5;
         }
 
+        if(bases.get(EntityType.MELEE_BASE.tag) == 1 && bases.get(EntityType.RANGED_BASE.tag) == 0)
+            RANGED_RATIO = 0;
+        else if(bases.get(EntityType.MELEE_BASE.tag) == 0 && bases.get(EntityType.RANGED_BASE.tag) == 1)
+            RANGED_RATIO = 1;
+        else if(bases.get(EntityType.MELEE_BASE.tag) == 1 && bases.get(EntityType.RANGED_BASE.tag) > 1)
+            RANGED_RATIO = ((double)bases.get(EntityType.RANGED_BASE.tag)) / ((double)bases.get(EntityType.RANGED_BASE.tag) +
+                    (double)bases.get(EntityType.MELEE_BASE.tag));
+        else
+            RANGED_RATIO = 0.6;
+        System.out.println(bases.get(EntityType.MELEE_BASE.tag));
+        System.out.println(bases.get(EntityType.RANGED_BASE.tag));
+        System.out.println("RATIO " + RANGED_RATIO);
+
         var placesForHouses = getReverseVec2IntArray(getPlacesForHouses());
 
         int houseCounter = 0;
@@ -523,9 +550,7 @@ public class Prince{//Управляет только строителями
         for(var building : buildings){
             var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
 
-            if(building.getHealth() < propertiesBuilding.getMaxHealth() && (building.getEntityType() == EntityType.HOUSE ||
-                    building.getEntityType() == EntityType.BUILDER_BASE || building.getEntityType() == EntityType.RANGED_BASE ||
-                    building.getEntityType() == EntityType.MELEE_BASE)){
+            if(building.getHealth() < propertiesBuilding.getMaxHealth()){
                 repairTargets.add(building);
             }
         }
@@ -551,8 +576,47 @@ public class Prince{//Управляет только строителями
 
 
             if(houseBuildersIds.contains(entity.getId())/*entity.getId() == builderChief.getId()*/) { // Если юнит - строитель домов
+                // Постройка базы строителей
+                if(bases.get(EntityType.BUILDER_BASE.tag) == 0 && me.getResource() >= 500){
+                    Vec2Int placeForBase = getPlaceForBase();
+                    move_action = new MoveAction(
+                            new Vec2Int(placeForBase.getX(),placeForBase.getY() - 1),
+                            true,
+                            false
+                    );
+                    build_action = new BuildAction(
+                            EntityType.BUILDER_BASE,
+                            placeForBase
+                    );
+                }
+                // Постройка базы ближников
+                else if(bases.get(EntityType.MELEE_BASE.tag) == 0 && me.getResource() >= 500){
+                    Vec2Int placeForBase = getPlaceForBase();
+                    move_action = new MoveAction(
+                            new Vec2Int(placeForBase.getX(),placeForBase.getY() - 1),
+                            true,
+                            false
+                    );
+                    build_action = new BuildAction(
+                            EntityType.MELEE_BASE,
+                            placeForBase
+                    );
+                }
+                // Постройка базы дальников
+                else if(me.getResource() >= 500){
+                    Vec2Int placeForBase = getPlaceForBase();
+                    move_action = new MoveAction(
+                            new Vec2Int(placeForBase.getX(),placeForBase.getY() - 1),
+                            true,
+                            false
+                    );
+                    build_action = new BuildAction(
+                            EntityType.RANGED_BASE,
+                            placeForBase
+                    );
+                }
                 // Постройка дома
-                if(provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING &&
+                else if(provision - (buildersCount + meleeCount + rangeCount) <= INAPPROPRIATE_PROVISION_REMAINING &&
                 me.getResource() >= RESOURCE_TO_BUILD && houseCounter < placesForHouses.size()){
                     Vec2Int placeForHouse = placesForHouses.get(houseCounter);
                     houseCounter++;
@@ -619,7 +683,6 @@ public class Prince{//Управляет только строителями
                 }*/
 
                 if(repair_action == null && build_action == null/* && playerView.getCurrentTick() < TIME_TO_FARM*/){
-                    System.out.println("Gotta mine");
                     move_action = new MoveAction(new Vec2Int(playerView.getMapSize() - 1, // Послать в другой конец карты
                             playerView.getMapSize() - 1), true, true);
                     attack_action = new AttackAction(
@@ -734,7 +797,7 @@ public class Prince{//Управляет только строителями
                 );
             }
         }
-
+        System.out.println("Prince is done");
         active = 2;
     }
 }

@@ -204,6 +204,7 @@ public class Maintenance {
             );
         }
 
+        System.out.println("Maintenance is done");
         active = 2;
     }
 }

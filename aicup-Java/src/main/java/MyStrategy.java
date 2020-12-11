@@ -30,14 +30,14 @@ public class MyStrategy {
     Entity eng_e;
     Entity eng_n;
 
-    int MAINTENANCE_MAX_COUNT = 3;
+    int MAINTENANCE_MAX_COUNT = 2;
     int HOUSEBUILDERS_MAX_COUNT = 3;
     int MAINTENANCE_PER_BUILDER = 10;
     int HOUSEBUILDER_PER_BUILDER = 20;
 
     public MyStrategy() {
         //myExecutor = Executors.newCachedThreadPool();
-        myExecutor = Executors.newFixedThreadPool(4);
+        myExecutor = Executors.newFixedThreadPool(5);
         enemyPositions = new HashMap<>();
         warlord = new Warlord();
         prince = new Prince();
@@ -99,6 +99,11 @@ public class MyStrategy {
         ArrayList<Entity> buildings = new ArrayList<>();
         ArrayList<Entity> enemyEntities = new ArrayList<>();
         ArrayList<Entity> turrets = new ArrayList<>();
+        HashMap<Integer, Integer> bases = new HashMap<>();
+        bases.put(EntityType.BUILDER_BASE.tag, 0);
+        bases.put(EntityType.RANGED_BASE.tag,  0);
+        bases.put(EntityType.MELEE_BASE.tag, 0);
+
 
 
         int buildersCount = 0; // Кол-во строителей
@@ -210,6 +215,10 @@ public class MyStrategy {
             if(entity.getEntityType() == EntityType.RANGED_UNIT)
                 rangeCount++;
 
+            if(entity.getEntityType() == EntityType.BUILDER_BASE || entity.getEntityType() == EntityType.RANGED_BASE ||
+                    entity.getEntityType() == EntityType.MELEE_BASE){
+                bases.put(entity.getEntityType().tag, bases.get(entity.getEntityType().tag) + 1);
+            }
 
         }
         //Назначение нового прораба
@@ -225,7 +234,7 @@ public class MyStrategy {
             housebuildEntities.add(maintenanceCandidates.get(i));
             i++;
         }
-        while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT + (provision - 30) / MAINTENANCE_PER_BUILDER &&
+        while(maintenanceEntities.size() < MAINTENANCE_MAX_COUNT + (provision - 40) / MAINTENANCE_PER_BUILDER &&
                 i < maintenanceCandidates.size()){
             maintenanceEntities.add(maintenanceCandidates.get(i));
             i++;
@@ -263,7 +272,8 @@ public class MyStrategy {
             public void run() {
                 prince.setActive(1);
                 prince.activate(playerView, me, filledCells, entityById, princeEntities, new ArrayList<>(buildings), finalBuildersCount,
-                        finalMeleeCount, finalRangeCount, builderChief, maintenance.getMaintenanceIds(), warlord.isRedAlert());
+                        finalMeleeCount, finalRangeCount, builderChief, maintenance.getMaintenanceIds(), warlord.isRedAlert(),
+                        bases);
             }
         });
 
@@ -287,6 +297,7 @@ public class MyStrategy {
         prince.setActive(0);
         maintenance.setActive(0);
         engineers.setActive(0);
+        System.out.println("Everyone is done");
 
 
         var result = new Action(new HashMap<>()); // Список действий
@@ -302,7 +313,6 @@ public class MyStrategy {
         debugInterface.send(new DebugCommand.Clear());
         debugInterface.getState();
     }
-
 
 
 }
