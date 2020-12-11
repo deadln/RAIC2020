@@ -407,6 +407,84 @@ public class Prince{//Управляет только строителями
         return result;
     }
 
+    ArrayList<Entity> getNearestBuilders(Entity building, int count){ // Функция поиска ближайших count строителей
+        var properties = playerView.getEntityProperties().get(building.getEntityType()); // Свойства
+        ArrayList<Entity> res = new ArrayList<>();
+        // Левый нижний угол
+        int ld_x = Math.max(0, building.getPosition().getX() - 1);
+        int ld_y = Math.max(0, building.getPosition().getY() - 1);
+        // Правый верхний угол
+        int ru_x = Math.min(playerView.getMapSize() - 1, building.getPosition().getX() + properties.getSize());
+        int ru_y = Math.min(playerView.getMapSize() - 1, building.getPosition().getY() + properties.getSize());
+
+        while(res.size() < count || (ru_x - ld_x <= 30 || ru_y - ld_y <= 30)){
+            Entity candidate = null;
+            //Проход по нижней границе
+            for(int x = ld_x; x <= ru_x; x++){
+                candidate = entityById.get(filledCells[x][ld_y]);
+                if(candidate == null)
+                    continue;
+                if(candidate.getEntityType() == EntityType.BUILDER_UNIT && candidate.getPlayerId() == me.getId() &&
+                !houseBuildersIds.contains(candidate.getId())){
+                    res.add(candidate);
+                }
+            }
+            //Проход по левой границе
+            for(int y = ld_y; y <= ru_y; y++){
+                candidate = entityById.get(filledCells[ld_x][y]);
+                if(candidate == null)
+                    continue;
+                if(candidate.getEntityType() == EntityType.BUILDER_UNIT && candidate.getPlayerId() == me.getId() &&
+                        !houseBuildersIds.contains(candidate.getId())){
+                    res.add(candidate);
+                }
+            }
+            //Проход по верхней границе
+            for(int x = ld_x; x <= ru_x; x++){
+                candidate = entityById.get(filledCells[x][ru_y]);
+                if(candidate == null)
+                    continue;
+                if(candidate.getEntityType() == EntityType.BUILDER_UNIT && candidate.getPlayerId() == me.getId() &&
+                        !houseBuildersIds.contains(candidate.getId())){
+                    res.add(candidate);
+                }
+            }
+            //Проход по правой границе
+            for(int y = ld_y; y <= ru_y; y++){
+                candidate = entityById.get(filledCells[ru_x][y]);
+                if(candidate == null)
+                    continue;
+                if(candidate.getEntityType() == EntityType.BUILDER_UNIT && candidate.getPlayerId() == me.getId() &&
+                        !houseBuildersIds.contains(candidate.getId())){
+                    res.add(candidate);
+                }
+            }
+            //Смещение границ квадрата поиска
+            if(ld_x > 0)
+                ld_x--;
+            if(ld_y > 0)
+                ld_y--;
+            if(ru_x < playerView.getMapSize() - 1)
+                ru_x++;
+            if(ru_y < playerView.getMapSize() - 1)
+                ru_y++;
+
+        }
+
+        while(res.size() > count){
+            res.remove(count);
+        }
+        return res;
+    }
+
+    ArrayList<Vec2Int> getReverseVec2IntArray(ArrayList<Vec2Int> array){
+        var res = new ArrayList<Vec2Int>();
+        for(var vec : array){
+            res.add(new Vec2Int(vec.getX(), vec.getY()));
+        }
+        return res;
+    }
+
     public HashMap<Integer, EntityAction> getResult() {
         return result;
     }
@@ -437,7 +515,8 @@ public class Prince{//Управляет только строителями
             BUILDERS_RATIO = 0.5;
         }
 
-        var placesForHouses = getPlacesForHouses();
+        var placesForHouses = getReverseVec2IntArray(getPlacesForHouses());
+
         int houseCounter = 0;
 
         ArrayList<Entity> repairTargets = new ArrayList<>();
@@ -489,23 +568,38 @@ public class Prince{//Управляет только строителями
                             placeForHouse
                     );
                     if(me.getResource() > 200){
+                        Vec2Int place = null;
+                        if(playerView.getCurrentTick() % 4 == 0)
+                            place = new Vec2Int(entity.getPosition().getX(), entity.getPosition().getY() + 1);
+                        else if(playerView.getCurrentTick() % 4 == 1)
+                            place = new Vec2Int(entity.getPosition().getX() + 1, entity.getPosition().getY());
+                        else if(playerView.getCurrentTick() % 4 == 2)
+                            place = new Vec2Int(entity.getPosition().getX(), entity.getPosition().getY() - 1);
+                        else
+                            place = new Vec2Int(entity.getPosition().getX() - 1, entity.getPosition().getY());
+                        if(place.getX() < 0){
+                            place.setX(0);
+                        }
+                        if(place.getY() < 0){
+                            place.setY(0);
+                        }
                         build_action = new BuildAction(
                                 EntityType.HOUSE,
-                                new Vec2Int(entity.getPosition().getX(), entity.getPosition().getY() + 1)
+                                place
                         );
                     }
                     attack_action = null;
 
                 }
                 //Поиск здания для ремонта
-                if (build_action == null){
+                /*if (build_action == null){
                     System.out.println("Gotta repair");
                     /*for (var building : repairTargets) {
                         var propertiesBuilding = playerView.getEntityProperties().get(building.getEntityType());
                         if (building.getHealth() < propertiesBuilding.getMaxHealth() &&
                                 building.getEntityType() == EntityType.HOUSE || ) {
                             //System.out.println("Gotta repair the " + building.getEntityType());*/
-                            Entity repairTarget = getNearestRepairTarget(entity, repairTargets);
+                            /*Entity repairTarget = getNearestRepairTarget(entity, repairTargets);
                             if(repairTarget != null){
                                 move_action = new MoveAction(
                                         getNearestPoint(entity.getPosition(), getSides(repairTarget)),
@@ -515,14 +609,14 @@ public class Prince{//Управляет только строителями
                                 repair_action = new RepairAction(
                                         repairTarget.getId()
                                 );
-                            }
+                            }*/
                             /*break;
                         }
                     }*/
-                    if(repair_action != null){
+                    /*if(repair_action != null){
                         System.out.println("Repair???");
                     }
-                }
+                }*/
 
                 if(repair_action == null && build_action == null/* && playerView.getCurrentTick() < TIME_TO_FARM*/){
                     System.out.println("Gotta mine");
@@ -617,11 +711,30 @@ public class Prince{//Управляет только строителями
                     )
             );
         }
-        System.out.println(result.size());
+
+        // Ремонт зданий ближайшими строителями
+        for(var target : repairTargets){
+            var repairMen = getNearestBuilders(target, 3);
+            for(var builder : repairMen){
+                result.remove(builder.getId());
+                result.put(
+                        builder.getId(),
+                        new EntityAction(
+                                new MoveAction(
+                                        getNearestPoint(builder.getPosition(), getSides(target)),
+                                        true,
+                                        true
+                                ),
+                        null,
+                        null,
+                                new RepairAction(
+                                        target.getId()
+                                )
+                        )
+                );
+            }
+        }
 
         active = 2;
-
-
-
     }
 }
